@@ -1,0 +1,17 @@
+server:
+  port: 8080 # Gateway'imiz dış dünyaya 8080 portundan hizmet verecek.
+
+spring:
+  application:
+    name: api-gateway # Mikroservisimizin sistemdeki resmi adı.
+
+  cloud:
+    gateway:
+      server:
+        webmvc:
+          routes:
+            # KURAL 1: Google Yönlendirmesi (Öğrenme amaçlı demo)
+            - id: google_route
+              uri: https://www.google.com
+              predicates:
+                - Path=/google-search/**
