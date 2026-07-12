@@ -15,3 +15,8 @@ spring:
               uri: https://www.google.com
               predicates:
                 - Path=/google-search/**
+
+eureka:
+  client:
+    service-url:
+      default-zone: "http://localhost:8761/eureka"
