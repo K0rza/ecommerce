@@ -1,0 +1,59 @@
+services:
+    db:
+        image: postgres:16-alpine
+        container_name: ecomm-postgres
+        restart: always
+        ports:
+            - 5432:5432
+        environment:
+            - POSTGRES_PASSWORD=qwe123
+            - POSTGRES_USER=hilhan
+            - POSTGRES_DB=ecommerce_db
+        volumes:
+            - db:/var/lib/postgresql/data
+        networks:
+            - ecomm-network
+
+    cache:
+        image: redis:7.2-alpine
+        container_name: ecomm-redis
+        restart: always
+        ports:
+            - 6379:6379
+        networks:
+            - ecomm-network
+
+    broker-keeper:
+        image: confluentinc/cp-zookeeper:7.5.0
+        container_name: ecomm-zookeeper
+        environment:
+            ZOOKEEPER_CLIENT_PORT: 2181
+            ZOOKEEPER_TICK_TIME: 2000
+        ports:
+            - "2181:2181"
+        networks:
+            - ecomm-network
+    
+    kafka:
+        image: confluentinc/cp-kafka:7.5.0
+        container_name: ecomm-kafka
+        depends_on:
+            - broker-keeper
+        ports:
+            - "9092:9092"
+        environment:
+            KAFKA_BROKER_ID: 1
+            KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+            KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+            KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+            KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+            KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+        networks:
+            - ecomm-network
+
+volumes:
+    db:
+
+networks:
+  ecomm-network:
+    driver: bridge
