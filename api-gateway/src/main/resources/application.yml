@@ -1,22 +1,16 @@
 server:
-  port: 8080 # Gateway'imiz dış dünyaya 8080 portundan hizmet verecek.
+  port: 8080
 
 spring:
   application:
-    name: api-gateway # Mikroservisimizin sistemdeki resmi adı.
-
+    name: api-gateway
   cloud:
     gateway:
-      server:
-        webmvc:
-          routes:
-            # KURAL 1: Google Yönlendirmesi (Öğrenme amaçlı demo)
-            - id: google_route
-              uri: https://www.google.com
-              predicates:
-                - Path=/google-search/**
-
-eureka:
-  client:
-    service-url:
-      default-zone: "http://localhost:8761/eureka"
+      mvc: # server.webmvc yerine sadece mvc yazıyoruz. Yeni endüstri standardı bu.
+        routes:
+          - id: product_route
+            uri: lb://product-service
+            predicates:
+              - Path=/api/products
+            filters:
+              - StripPrefix=1
