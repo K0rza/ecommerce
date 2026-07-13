@@ -1,6 +1,15 @@
 spring:
   application:
     name: product-service
+  
+  datasource: 
+    url: jdbc:postgresql://localhost:5432/ecommerce_db
+    username: postgres
+    password: password
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
 
 eureka:
   client:
