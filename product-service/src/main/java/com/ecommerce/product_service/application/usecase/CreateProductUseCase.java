@@ -1,6 +1,10 @@
 package com.ecommerce.product_service.application.usecase;
 
+import java.util.Random;
+
 import com.ecommerce.product_service.application.command.CreateProductCommand;
+import com.ecommerce.product_service.domain.exception.InvalidPriceException;
+import com.ecommerce.product_service.domain.exception.InvalidSkuException;
 import com.ecommerce.product_service.domain.model.Price;
 import com.ecommerce.product_service.domain.model.Product;
 import com.ecommerce.product_service.domain.model.Sku;
@@ -14,8 +18,8 @@ public class CreateProductUseCase {
         this.productRepository = productRepository;
     }
 
-    public int execute(CreateProductCommand command) {
-        int productId = 10;
+    public int execute(CreateProductCommand command) throws InvalidPriceException, InvalidSkuException {
+        int productId = new Random().nextInt(100);
         Sku sku = new Sku(command.sku());
         Price price = new Price(command.price(), command.currency());
 
