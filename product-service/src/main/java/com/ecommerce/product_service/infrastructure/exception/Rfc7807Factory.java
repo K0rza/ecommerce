@@ -1,6 +1,7 @@
 package com.ecommerce.product_service.infrastructure.exception;
 
 import java.net.URI;
+import java.util.UUID;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
@@ -39,6 +40,21 @@ public class Rfc7807Factory {
         problemDetail.setType(URI.create("https://api.ecommerce.com/errors/invalid-sku"));
 
         return problemDetail;
+    }
+
+    @ExceptionHandler(Exception.class) 
+    public ProblemDetail toGeneralException(Exception e) {
+        ProblemDetail pb = ProblemDetail.forStatus(500);
+
+        String traceId = UUID.randomUUID().toString();
+        System.out.println(String.format("The StackTrace for traceId: {} is {}", traceId, e));
+
+        pb.setDetail("Server-in problem is occured. TraceId: " + traceId);
+        pb.setTitle("Server-in Error");
+        pb.setType(URI.create("https://api.ecommerce.com/errors/internal-error"));
+        pb.setProperty("trace_id", traceId);
+
+        return pb;
     }
 
 }
