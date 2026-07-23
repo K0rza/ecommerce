@@ -11,6 +11,6 @@ spring:
           - id: product_route
             uri: lb://product-service
             predicates:
-              - Path=/api/products
+              - Path=/api/products/**
             filters:
               - StripPrefix=1

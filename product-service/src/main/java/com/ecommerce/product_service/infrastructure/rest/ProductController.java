@@ -4,6 +4,8 @@ import java.math.BigDecimal;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -11,16 +13,18 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.ecommerce.product_service.application.command.CreateProductCommand;
 import com.ecommerce.product_service.application.usecase.CreateProductUseCase;
+import com.ecommerce.product_service.infrastructure.exception.InventoryCircuitBreaker;
+
+import lombok.RequiredArgsConstructor;
+
 
 @RestController
 @RequestMapping("/products")
+@RequiredArgsConstructor
 public class ProductController {
 
-    private CreateProductUseCase useCase;
-
-    public ProductController(CreateProductUseCase useCase) {
-        this.useCase = useCase;
-    }
+    private  final CreateProductUseCase useCase;
+    private final InventoryCircuitBreaker inventoryCircuitBreaker;
 
     public record CreateProductRequest(
         String title,
@@ -42,4 +46,11 @@ public class ProductController {
         
         return ResponseEntity.status(HttpStatus.CREATED).body(useCase.execute(command));
     }
+
+    @GetMapping("/{product}")
+    public ResponseEntity<Integer> getProductName(@PathVariable("product") String product) {
+        int stock = inventoryCircuitBreaker.checkStock(product);
+        return ResponseEntity.ok(stock);
+    }
+   
 }

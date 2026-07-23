@@ -15,13 +15,13 @@ public class InventoryCircuitBreaker {
 
     private final InventoryClient inventoryClient;
 
-    @CircuitBreaker(name = "inventoryCB", fallbackMethod = "fallback")
+    @CircuitBreaker(name = "inventoryCB", fallbackMethod = "fallbackGetStock")
     public Integer checkStock(String sku) {
         log.info("{} product stock is queing from inventory-service", sku);
         return inventoryClient.getStock(sku);
     }
 
-    public Integer fallback() {
+    public Integer fallbackGetStock(String sku, Throwable exception) {
         log.error("Inventory Service is unavailable now, please try again later.");
         return 0;
     }

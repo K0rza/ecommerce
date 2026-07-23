@@ -42,6 +42,7 @@ public class Rfc7807Factory {
         return problemDetail;
     }
 
+    /*
     @ExceptionHandler(Exception.class) 
     public ProblemDetail toGeneralException(Exception e) {
         ProblemDetail pb = ProblemDetail.forStatus(500);
@@ -56,5 +57,6 @@ public class Rfc7807Factory {
 
         return pb;
     }
+        */
 
 }
