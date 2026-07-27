@@ -4,14 +4,15 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 import com.ecommerce.product_service.application.usecase.CreateProductUseCase;
+import com.ecommerce.product_service.domain.port.ProductEventPublisher;
 import com.ecommerce.product_service.domain.repository.ProductRepository;
 
 @Configuration
 public class UseCaseConfig {
 
     @Bean
-    public CreateProductUseCase CreateProductUseCase(ProductRepository repo) {
-        return new CreateProductUseCase(repo);
+    public CreateProductUseCase CreateProductUseCase(ProductRepository repo, ProductEventPublisher publisher) {
+        return new CreateProductUseCase(repo, publisher);
     }
 
 }
