@@ -7,5 +7,6 @@ public record CreateProductCommand (
     String sku,
     BigDecimal price,
     String currency,
-    int stock
+    int stock,
+    long version
 ) {}

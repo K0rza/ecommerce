@@ -10,6 +10,7 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 
 @Entity
 @Table(name = "products")
@@ -19,6 +20,8 @@ public class ProductJpaEntity {
     @Column(name = "productId")
     private int productId;
 
+    @Version
+    private long version;
     private String title;
     private String sku;
     private BigDecimal priceAmount;
@@ -36,6 +39,7 @@ public class ProductJpaEntity {
         entity.sku = product.getSku().toString();
         entity.stock = product.getStock();
         entity.title = product.getTitle();
+        entity.version = product.getVersion();
 
         return entity;
     }
@@ -46,7 +50,8 @@ public class ProductJpaEntity {
             new Price(priceAmount, priceCurreny),
             new Sku(this.sku),
             this.title,
-            this.stock
+            this.stock,
+            this.version
         );
     }
 }

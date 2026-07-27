@@ -3,13 +3,17 @@ package com.ecommerce.product_service.infrastructure.exception;
 import java.net.URI;
 import java.util.UUID;
 
+import org.springframework.beans.factory.parsing.Problem;
+import org.springframework.boot.autoconfigure.web.reactive.WebFluxProperties.Problemdetails;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ProblemDetail;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import com.ecommerce.product_service.domain.exception.InvalidPriceException;
 import com.ecommerce.product_service.domain.exception.InvalidSkuException;
+import com.ecommerce.product_service.domain.exception.InvalidVersionException;
 
 @RestControllerAdvice
 public class Rfc7807Factory {
@@ -40,6 +44,15 @@ public class Rfc7807Factory {
         problemDetail.setType(URI.create("https://api.ecommerce.com/errors/invalid-sku"));
 
         return problemDetail;
+    }
+
+    @ExceptionHandler(InvalidVersionException.class) 
+    public ProblemDetail toInvalidVersion(InvalidVersionException ex) {
+        ProblemDetail pb = ProblemDetail.forStatus(HttpStatus.UNPROCESSABLE_ENTITY);
+        pb.setDetail(ex.getMessage());
+        pb.setTitle("Invalid Version Argument");
+
+        return pb;
     }
 
     /*

@@ -31,7 +31,8 @@ public class ProductController {
         String sku,
         BigDecimal priceAmount,
         String currency,
-        int stock
+        int stock,
+        long version
     ) {}
 
     @PostMapping()
@@ -42,7 +43,9 @@ public class ProductController {
             request.sku(),
             request.priceAmount(), 
             request.currency(), 
-            request.stock());
+            request.stock(),
+            request.version()
+        );
         
         return ResponseEntity.status(HttpStatus.CREATED).body(useCase.execute(command));
     }

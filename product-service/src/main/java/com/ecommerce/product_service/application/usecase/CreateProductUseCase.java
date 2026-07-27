@@ -24,7 +24,7 @@ public class CreateProductUseCase {
         Price price = new Price(command.price(), command.currency());
 
         //Aggragate Root
-        Product product = new Product(productId, price, sku, command.title(), command.stock());
+        Product product = new Product(productId, price, sku, command.title(), command.stock(), command.version());
         
         //Port
         productRepository.save(product);
