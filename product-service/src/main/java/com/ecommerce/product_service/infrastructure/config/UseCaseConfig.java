@@ -4,15 +4,15 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 import com.ecommerce.product_service.application.usecase.CreateProductUseCase;
-import com.ecommerce.product_service.domain.port.ProductEventPublisher;
 import com.ecommerce.product_service.domain.repository.ProductRepository;
+import com.ecommerce.product_service.infrastructure.kafka.adapter.KafkaProductCreatedEventPublisherAdapter;
 
 @Configuration
 public class UseCaseConfig {
 
     @Bean
-    public CreateProductUseCase CreateProductUseCase(ProductRepository repo, ProductEventPublisher publisher) {
-        return new CreateProductUseCase(repo, publisher);
+    public CreateProductUseCase CreateProductUseCase(ProductRepository repo, KafkaProductCreatedEventPublisherAdapter eventPublisher) {
+        return new CreateProductUseCase(repo, eventPublisher);
     }
 
 }

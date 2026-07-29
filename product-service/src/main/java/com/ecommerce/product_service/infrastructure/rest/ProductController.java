@@ -23,7 +23,7 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class ProductController {
 
-    private  final CreateProductUseCase useCase;
+    private final CreateProductUseCase useCase;
     private final InventoryCircuitBreaker inventoryCircuitBreaker;
 
     public record CreateProductRequest(

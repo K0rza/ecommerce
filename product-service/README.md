@@ -13,10 +13,7 @@ To test this service:
 4. Send request to api-gateway, the service will route incoming request to product-service and the underlying business-logic will be called. And a product will be added to database.
 
 '''
-Invoke-RestMethod -Uri "http://localhost:8080/api/products" `
-    -Method Post `
-    -Headers @{"Content-Type"="application/json"} `
-    -Body '{"title": "Laptop", "sku": "LPT-123", "priceAmount": 100, "currency": "TRY", "stock": 10}'
+Invoke-RestMethod -Uri "http://localhost:8080/api/products" -Method Post -Headers @{"Content-Type"="application/json"} -Body '{"title": "Macbook", "sku": "APL-199167", "priceAmount": 150000, "currency": "TRY", "stock": 1, "version": 1}'
 '''
 
 5. Test the database the above data will be added.
