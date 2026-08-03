@@ -6,7 +6,9 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import lombok.NoArgsConstructor;
 
+@NoArgsConstructor
 @Entity
 @Table(name = "outbox")
 public class OutboxEventEntity {
@@ -29,9 +31,27 @@ public class OutboxEventEntity {
         return new OutboxEventEntity(productId, eventName, payload);
     }
 
+    public boolean isNotProcessed() {
+        return !this.processed;
+    }
+
+    public UUID getId() { return id; }
+
+    public int getProductId() { return productId; }
+
+    public String getEventName() { return eventName; }
+
+    public String getPayload() { return payload; }
+
+    public boolean isProcessed() { return processed; }
+
     @Override
     public String toString() {
         return "OutboxEventEntity [id=" + id + ", productId=" + productId + ", eventName=" + eventName + ", payload="
                 + payload + ", processed=" + processed + "]";
+    }
+
+    public void processed() {
+        this.processed = true;
     }
 }

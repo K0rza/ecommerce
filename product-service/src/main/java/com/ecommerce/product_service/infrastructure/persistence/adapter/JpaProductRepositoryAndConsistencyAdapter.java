@@ -1,6 +1,8 @@
 package com.ecommerce.product_service.infrastructure.persistence.adapter;
 
 import java.util.Optional;
+import java.util.UUID;
+import java.util.stream.Stream;
 
 import org.springframework.stereotype.Repository;
 
@@ -44,6 +46,18 @@ public class JpaProductRepositoryAndConsistencyAdapter implements ProductReposit
         return jpaRepo.findById(productId).map(ProductJpaEntity::toDomain);
     }
 
+    public Stream<OutboxEventEntity> findNotProcessedEvents() {
+        return outboxRepo.findAll().stream()
+            .filter(OutboxEventEntity::isNotProcessed);
+    }
+
+    public void processed(UUID id) {
+        outboxRepo.findById(id).ifPresentOrElse(entity -> {
+            entity.processed();
+            outboxRepo.save(entity);
+        }, () -> log.error("Couldnt find the data from the database. id: %s", id));
+    }
+
     private void save(Product product) {
         ProductJpaEntity entity = ProductJpaEntity.fromDomain(product);
         jpaRepo.save(entity);
@@ -61,6 +75,4 @@ public class JpaProductRepositoryAndConsistencyAdapter implements ProductReposit
         log.error("outbox entity: "+ outboxEntity);
         outboxRepo.save(outboxEntity);
     }
-    
-
 }
