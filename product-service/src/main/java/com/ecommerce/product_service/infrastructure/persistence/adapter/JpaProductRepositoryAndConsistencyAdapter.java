@@ -30,13 +30,13 @@ public class JpaProductRepositoryAndConsistencyAdapter implements ProductReposit
     @Override
     @Transactional
     public void save(Product product, ProductCreatedEvent event) {
-        log.debug("Data is saving...");
+        log.error("Data is saving...");
         save(product);
-        log.debug("Data is saved.");
+        log.error("Data is saved.");
         
-        log.debug("Outbox event is saving...");
+        log.error("Outbox event is saving...");
         save(event);
-        log.debug("Outbox event is saved.");
+        log.error("Outbox event is saved.");
     }
 
     @Override
@@ -58,7 +58,7 @@ public class JpaProductRepositoryAndConsistencyAdapter implements ProductReposit
         }
 
         OutboxEventEntity outboxEntity = OutboxEventEntity.of(event.productId(), "PRODUCT-CREATED-EVENTS", payload);
-        log.debug("outbox entity: "+ outboxEntity);
+        log.error("outbox entity: "+ outboxEntity);
         outboxRepo.save(outboxEntity);
     }
     

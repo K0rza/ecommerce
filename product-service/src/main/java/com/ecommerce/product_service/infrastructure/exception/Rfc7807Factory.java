@@ -1,12 +1,8 @@
 package com.ecommerce.product_service.infrastructure.exception;
 
 import java.net.URI;
-import java.util.UUID;
 
-import org.springframework.beans.factory.parsing.Problem;
-import org.springframework.boot.autoconfigure.web.reactive.WebFluxProperties.Problemdetails;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ProblemDetail;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
