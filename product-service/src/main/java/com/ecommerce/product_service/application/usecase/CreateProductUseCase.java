@@ -9,17 +9,14 @@ import com.ecommerce.product_service.domain.exception.InvalidSkuException;
 import com.ecommerce.product_service.domain.model.Price;
 import com.ecommerce.product_service.domain.model.Product;
 import com.ecommerce.product_service.domain.model.Sku;
-import com.ecommerce.product_service.domain.port.ProductEventPublisher;
 import com.ecommerce.product_service.domain.repository.ProductRepository;
 
 public class CreateProductUseCase {
 
     private final ProductRepository productRepository;
-    private final ProductEventPublisher publisher;
 
-    public CreateProductUseCase(ProductRepository productRepository, ProductEventPublisher publisher) {
+    public CreateProductUseCase(ProductRepository productRepository) {
         this.productRepository = productRepository;
-        this.publisher = publisher;
     }
 
     public int execute(CreateProductCommand command) throws InvalidPriceException, InvalidSkuException {
@@ -31,9 +28,7 @@ public class CreateProductUseCase {
         Product product = new Product(productId, price, sku, command.title(), command.stock(), command.version());
         
         //Port
-        productRepository.save(product);
-
-        publisher.publish(new ProductCreatedEvent(productId, sku, command.title()));
+        productRepository.save(product, new ProductCreatedEvent(productId, sku, command.title()));
 
         return product.getProductId();
     }
