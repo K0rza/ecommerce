@@ -1,0 +1,11 @@
+POST http://localhost:8080/api/products
+Content-Type: application/json 
+
+{
+    "title": "Macbook",
+    "sku": "APL-199167", 
+    "priceAmount": 150000, 
+    "currency": "TRY", 
+    "stock": 1, 
+    "version": 1
+}
