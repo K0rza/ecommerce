@@ -1,0 +1,12 @@
+{
+  "servers": {
+    "rest-client": {
+      "type": "stdio",
+      "command": "/Applications/Visual Studio Code.app/Contents/Frameworks/Code Helper (Plugin).app/Contents/MacOS/Code Helper (Plugin)",
+      "args": [
+        "/Users/enes/.vscode/extensions/johncole.restclient-mcp-1.5.1/dist/mcp-server.mjs"
+      ],
+      "cwd": "/Users/enes/.vscode/extensions/johncole.restclient-mcp-1.5.1"
+    }
+  }
+}
