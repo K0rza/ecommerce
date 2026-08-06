@@ -23,10 +23,10 @@ public class OutboxScheduler {
             .forEach(event -> {
                 log.error("sending data to kafka and processed");
                 kafkaTemplate.send(event.getEventName(), event.getPayload())
-                    .thenRun(() -> outboxAdapter.processed(event.getId()));
-
-               log.error("sent data: " + event.getPayload() + " to topic: " + event.getEventName() + " lastStaus: " + event.isProcessed());
-
+                    .thenRun(() -> {
+                        outboxAdapter.processed(event.getId());
+                        log.error("sent data: " + event.getPayload() + " to topic: " + event.getEventName() + " lastStaus: " + event.isProcessed());
+                    });
             });
     }
 
