@@ -18,19 +18,26 @@ import lombok.extern.slf4j.Slf4j;
 @Component
 public class ProductCreatedEventConsumer {
 
-    private ObjectMapper mapper;
-    private ProductCreateUseCase useCase;
+    private final ObjectMapper mapper;
+    private final ProductCreateUseCase useCase;
 
     @KafkaListener(topics = "PRODUCT-CREATED-EVENTS")
     public void consume(ConsumerRecord<String, String> record) {
+        log.error("Product-Created-Events consumed.");
+
         String payload = record.value();
         try {
             ProductEventType productEvent = mapper.readValue(payload, ProductEventType.class);
+            log.error("consumed event: " + productEvent);
+
             JsonNode node = mapper.readTree(productEvent.getPayload());
-            
+
+            log.error("ProductCreatedUseCase is calling... amount: " + node.get("amount").asInt());
             useCase.createProduct(productEvent.toDomain(node.get("amount").asInt()));
-        } catch (JsonProcessingException e) {
-            log.error("Couldnt parse incoming kafka data to product");
+            log.error("ProductCreatedUseCase is called.");
+
+        } catch (Exception e) {
+            log.error("exception " + e);
         }
 
     }

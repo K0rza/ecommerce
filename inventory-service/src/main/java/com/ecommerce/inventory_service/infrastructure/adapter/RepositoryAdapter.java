@@ -7,22 +7,38 @@ import org.springframework.stereotype.Component;
 import com.ecommerce.inventory_service.domain.entity.Product;
 import com.ecommerce.inventory_service.domain.port.RepositoryPort;
 import com.ecommerce.inventory_service.infrastructure.repository.JpaProductInterface;
+import com.ecommerce.inventory_service.infrastructure.repository.dto.ProductEntity;
 
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @RequiredArgsConstructor
+@Slf4j
 @Component
 public class RepositoryAdapter implements RepositoryPort {
 
-    private JpaProductInterface productRepo; 
+    private final JpaProductInterface productRepo; 
 
     @Override
-    public void ifNewProductOrElse(Product product, Consumer<Product> createNewProductJob, Runnable rejectProductJob) {
-        productRepo.findAll().stream()
-            .filter(item -> item.getEventId() == product.getEventId())
-            .findFirst()
+    public void ifNewProductOrElse(Product product, Consumer<Product> createNewProductJob, Consumer<Integer> rejectProductJob) {
+        log.error("RepositoryAdapter::ifNewProductOrElse begins. eventId: " + product.getEventId());
+
+        productRepo.findByEventId(product.getEventId())
             .ifPresentOrElse(
-                ignore -> rejectProductJob.run(), 
+                p -> rejectProductJob.accept(p.getEventId()), 
                 () -> createNewProductJob.accept(product));
+
+        log.error("RepositoryAdapter::ifNewProductOrElse ends.");
+    }
+
+    @Transactional
+    @Override
+    public void create(Product product) {
+        log.error("RepositoryAdapter::create begins. productId: " + product.getProductId());
+
+        productRepo.save(ProductEntity.fromDomain(product));
+
+        log.error("RepositoryAdapter::create ends.");
     }
 }

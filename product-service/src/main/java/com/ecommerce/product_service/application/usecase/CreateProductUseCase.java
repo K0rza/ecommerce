@@ -32,9 +32,8 @@ public class CreateProductUseCase {
         
         //Port
         productRepository.save(product);
-        publisher.publish(new ProductCreatedEvent(productId, sku, command.stock(), command.title()));
+        publisher.publish(new ProductCreatedEvent(productId, command.stock()));
 
         return product.getProductId();
     }
-
 }

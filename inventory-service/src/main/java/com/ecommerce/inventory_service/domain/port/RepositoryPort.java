@@ -6,6 +6,8 @@ import com.ecommerce.inventory_service.domain.entity.Product;
 
 public interface RepositoryPort {
 
-    void ifNewProductOrElse(Product product, Consumer<Product> createNewProductJob, Runnable rejectProductJob);
+    void ifNewProductOrElse(Product product, Consumer<Product> createNewProductJob, Consumer<Integer> rejectProductJob);
+
+    void create(Product product);
 
 }

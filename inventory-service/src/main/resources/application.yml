@@ -1,7 +1,23 @@
 spring:
   application:
     name: inventory-service
-  
+    
+  datasource:
+    url: jdbc:postgresql://localhost:1590/inventory_db
+    username: hilhan
+    password: qwe123
+
+  jpa:
+    show-sql: true
+
+  kafka:
+    bootstrap-servers: localhost:9092
+
+    consumer:
+      group-id: inventory-service
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+
 server:
   port: 8081
 

@@ -3,21 +3,23 @@ package com.ecommerce.inventory_service.infrastructure.kafka.entity;
 import com.ecommerce.inventory_service.domain.entity.Product;
 
 public class ProductEventType {
-    private int id;
+    private int eventId;
     private int productId;
     private String eventName;
     private String payload;
     private boolean processed;
 
-    public ProductEventType(int id, int productId, String eventName, String payload, boolean processed) {
-        this.id = id;
+    public ProductEventType() {}
+
+    public ProductEventType(int eventId, int productId, String eventName, String payload, boolean processed) {
+        this.eventId = eventId;
         this.productId = productId;
         this.eventName = eventName;
         this.payload = payload;
         this.processed = processed;
     }
 
-    public int getId() { return id; }
+    public int getEventId() { return eventId; }
 
     public int getProductId() { return productId; }
 
@@ -28,6 +30,15 @@ public class ProductEventType {
     public boolean isProcessed() { return processed; }
 
     public Product toDomain(int stock) {
-        return new Product(productId, id, stock);
+        return new Product(productId, eventId, stock);
     }
+
+    @Override
+    public String toString() {
+        return "ProductEventType [id=" + eventId + ", productId=" + productId + ", eventName=" + eventName + ", payload="
+                + payload + ", processed=" + processed + "]";
+    }
+
+    public record ProductEventPayload (int productId, int amount) {}
+
 }

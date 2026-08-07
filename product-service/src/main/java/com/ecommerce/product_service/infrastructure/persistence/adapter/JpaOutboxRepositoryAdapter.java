@@ -37,7 +37,7 @@ public class JpaOutboxRepositoryAdapter implements ProductEventPublisher {
     }
 
     @Override
-    public void processed(UUID id) {
+    public void processed(int id) {
         outboxRepo.findById(id).ifPresentOrElse(entity -> {
             entity.processed();
             outboxRepo.save(entity);

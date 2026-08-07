@@ -15,12 +15,12 @@ public class ProductCreateUseCase {
         repo.ifNewProductOrElse(product, this::createNewProduct, this::rejectProduct);
     }
 
-    private void createNewProduct(Product product) {
-        //TODO add new product to database!
+    private void createNewProduct(Product product) {        
+        repo.create(product);
     }
 
-    private void rejectProduct() {
-        //TODO throw exception and catch it in the Infra layer and log it all
+    private void rejectProduct(int eventId) {
+        //throw new IllegalEventIdempotent(eventId);
     }
 
 }

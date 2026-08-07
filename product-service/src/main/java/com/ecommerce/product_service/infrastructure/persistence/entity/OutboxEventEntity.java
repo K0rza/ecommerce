@@ -1,7 +1,5 @@
 package com.ecommerce.product_service.infrastructure.persistence.entity;
 
-import java.util.UUID;
-
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.Id;
@@ -15,7 +13,7 @@ public class OutboxEventEntity {
 
     @Id
     @GeneratedValue
-    private UUID id;
+    private int eventId;
     private int productId;
     private String eventName;
     private String payload;
@@ -35,7 +33,7 @@ public class OutboxEventEntity {
         return !this.processed;
     }
 
-    public UUID getId() { return id; }
+    public int getEventId() { return eventId; }
 
     public int getProductId() { return productId; }
 
@@ -45,13 +43,13 @@ public class OutboxEventEntity {
 
     public boolean isProcessed() { return processed; }
 
-    @Override
-    public String toString() {
-        return "OutboxEventEntity [id=" + id + ", productId=" + productId + ", eventName=" + eventName + ", payload="
-                + payload + ", processed=" + processed + "]";
-    }
-
     public void processed() {
         this.processed = true;
+    }
+
+    @Override
+    public String toString() {
+        return "OutboxEventEntity [eventId=" + eventId + ", productId=" + productId + ", eventName=" + eventName + ", payload="
+                + payload + ", processed=" + processed + "]";
     }
 }
