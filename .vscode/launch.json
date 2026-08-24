@@ -43,5 +43,17 @@
             "args": "",
             "envFile": "${workspaceFolder}/.env"
         }
+    ], 
+    "compounds": [
+        {
+            "name": "Start All Services",
+            "configurations": [
+                "Spring Boot-DiscoveryServiceApplication<discovery-server>",
+                "Spring Boot-ProductServiceApplication<product-service>",
+                "Spring Boot-InventoryServiceApplication<inventory-service>",
+                "Spring Boot-ApiGatewayApplication<api-gateway>"
+            ],
+            "stopAll": true
+        }
     ]
 }
