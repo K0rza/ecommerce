@@ -13,7 +13,7 @@ public class Order {
     private int quantity;
     private ORDER_STATUS status;
 
-    public Order(int orderId, String customerId, int productId, int quantity, ORDER_STATUS status) {
+    private Order(int orderId, String customerId, int productId, int quantity, ORDER_STATUS status) {
         if(orderId < 0 ) throw new IllegalOrderIdException(orderId);
         if(customerId.isEmpty()) throw new IllegalCustomerIdException(customerId);
         if(productId < 0) throw new IllegalProductIdException(productId);
@@ -35,5 +35,9 @@ public class Order {
     public int getQuantity() { return quantity; }
 
     public ORDER_STATUS getStatus() { return status; }
+
+    public static Order fromRequest(OrderRequest request, ORDER_STATUS orderStatus) {
+        return new Order(request.getOrderId(), request.getCustomerId(), request.getProductId(), request.getQuantity(), orderStatus);
+    }
 
 }
