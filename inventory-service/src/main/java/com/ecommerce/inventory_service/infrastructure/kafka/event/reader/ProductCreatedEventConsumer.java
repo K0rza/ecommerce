@@ -1,4 +1,4 @@
-package com.ecommerce.inventory_service.infrastructure.kafka;
+package com.ecommerce.inventory_service.infrastructure.kafka.event.reader;
 
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.springframework.kafka.annotation.KafkaListener;
