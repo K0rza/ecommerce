@@ -17,7 +17,7 @@ public class OrderController {
 
     @GetMapping("/api/orders")
     public void getOrders(@RequestBody OrderRequest orderRequest) {
-        useCase.execute(orderRequest);
+        useCase.process(orderRequest);
     }
 
 }
