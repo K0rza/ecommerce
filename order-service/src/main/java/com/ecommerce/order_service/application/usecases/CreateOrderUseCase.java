@@ -7,7 +7,7 @@ import com.ecommerce.order_service.domain.entity.OrderRequest;
 import com.ecommerce.order_service.domain.event.OrderCreatedEvent;
 
 public class CreateOrderUseCase {
-    private OrderCreatedEventPublisher publisher;
+    private final OrderCreatedEventPublisher publisher;
 
     public CreateOrderUseCase(OrderCreatedEventPublisher publisher) {
         this.publisher = publisher;

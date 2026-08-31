@@ -2,6 +2,7 @@ package com.ecommerce.order_service.infrastructure.scheduled;
 
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.stereotype.Component;
 
 import com.ecommerce.order_service.infrastructure.persistence.JpaOrderAdapter;
 import com.ecommerce.order_service.infrastructure.persistence.dto.OrderOutbox;
@@ -11,6 +12,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 
 @RequiredArgsConstructor
+@Component
 public class OutboxPublisher {
 
     private final JpaOrderAdapter jpaAdapter;
