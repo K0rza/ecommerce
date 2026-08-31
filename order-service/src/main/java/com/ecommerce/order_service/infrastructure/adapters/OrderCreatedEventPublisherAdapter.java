@@ -4,8 +4,8 @@ import org.springframework.stereotype.Component;
 
 import com.ecommerce.order_service.application.port.OrderCreatedEventPublisher;
 import com.ecommerce.order_service.domain.event.OrderCreatedEvent;
-import com.ecommerce.order_service.infrastructure.persistence.JpaOrderAdapter;
-import com.ecommerce.order_service.infrastructure.persistence.dto.OrderOutbox;
+import com.ecommerce.order_service.infrastructure.persistence.adapter.JpaOrderOutboxTableAdapter;
+import com.ecommerce.order_service.infrastructure.persistence.dto.OrderOutboxTable;
 
 import lombok.RequiredArgsConstructor;
 
@@ -13,11 +13,11 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class OrderCreatedEventPublisherAdapter implements OrderCreatedEventPublisher {
 
-    private final JpaOrderAdapter jpaAdapter;
+    private final JpaOrderOutboxTableAdapter jpaAdapter;
 
     @Override
     public void publish(OrderCreatedEvent event) {
-        OrderOutbox dto = OrderOutbox.to(event);
+        OrderOutboxTable dto = OrderOutboxTable.to(event);
         
         jpaAdapter.save(dto);
     }

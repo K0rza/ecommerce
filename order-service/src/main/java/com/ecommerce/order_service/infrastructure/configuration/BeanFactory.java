@@ -5,19 +5,13 @@ import org.springframework.stereotype.Component;
 
 import com.ecommerce.order_service.application.port.OrderCreatedEventPublisher;
 import com.ecommerce.order_service.application.usecases.CreateOrderUseCase;
+import com.ecommerce.order_service.infrastructure.persistence.service.DatabaseService;
 
 @Component
 public class BeanFactory {
 
     @Bean
-    public CreateOrderUseCase toUseCase(OrderCreatedEventPublisher publisher) {
-        return new CreateOrderUseCase(publisher);
+    public CreateOrderUseCase toUseCase(OrderCreatedEventPublisher publisher, DatabaseService databaseService) {
+        return new CreateOrderUseCase(publisher, databaseService);
     }
-
-    /*
-        @Bean
-        public OrderCreatedEventPublisher toPublisher(OrderCreatedEventPublisherAdapter adapter) {
-            return adapter;
-        }
-    */
 }

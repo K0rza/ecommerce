@@ -10,7 +10,7 @@ import jakarta.persistence.Table;
 
 @Table(name = "OrderOutbox")
 @Entity
-public class OrderOutbox {
+public class OrderOutboxTable {
 
     @Id
     private int orderId;
@@ -19,9 +19,9 @@ public class OrderOutbox {
     private ORDER_STATUS status;
     private boolean published;
 
-    public OrderOutbox() {}
+    public OrderOutboxTable() {}
 
-    private OrderOutbox(int orderId, int productId, int quantity, ORDER_STATUS status) {
+    private OrderOutboxTable(int orderId, int productId, int quantity, ORDER_STATUS status) {
         this.orderId = orderId;
         this.productId = productId;
         this.quantity = quantity;
@@ -41,7 +41,7 @@ public class OrderOutbox {
 
     public boolean isNotPublished() { return !published;  }
 
-    public static OrderOutbox to(OrderCreatedEvent event) {
-        return new OrderOutbox(event.orderId(), event.productId(), event.quantity(), event.orderStatus());
+    public static OrderOutboxTable to(OrderCreatedEvent event) {
+        return new OrderOutboxTable(event.orderId(), event.productId(), event.quantity(), event.orderStatus());
     }
 }
