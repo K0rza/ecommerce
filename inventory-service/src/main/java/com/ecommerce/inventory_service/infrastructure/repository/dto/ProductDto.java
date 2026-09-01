@@ -1,6 +1,5 @@
 package com.ecommerce.inventory_service.infrastructure.repository.dto;
 
-import com.ecommerce.inventory_service.domain.entity.Inventory;
 import com.ecommerce.inventory_service.domain.entity.Product;
 
 import jakarta.persistence.Entity;
@@ -20,10 +19,18 @@ public class ProductDto {
 
     public ProductDto() {}
 
-    public ProductDto(int productId, int eventId, int stock) {
+    private ProductDto(int productId, int eventId, int stock) {
         this.productId = productId;
         this.eventId = eventId;
         this.stock = stock;
+    }
+
+    public static ProductDto from(Product product) {
+        return new ProductDto(product.getProductId(), product.getEventId(), product.getStock());
+    }
+
+    public static ProductDto from(int productId, int stock ) {
+        return new ProductDto(productId, UNUSED_EVENT_ID, stock);
     }
 
     public int getProductId() { return productId; }
@@ -32,11 +39,5 @@ public class ProductDto {
 
     public int getStock() { return stock; }
 
-    public static ProductDto from(Product product) {
-        return new ProductDto(product.getProductId(), product.getEventId(), product.getStock());
-    }
-
-    public static ProductDto from(Inventory inventory) {
-        return new ProductDto(inventory.getProductId(), UNUSED_EVENT_ID, inventory.getStock());
-    }
+    public void updateStock(int stock) { this.stock = stock; }
 }

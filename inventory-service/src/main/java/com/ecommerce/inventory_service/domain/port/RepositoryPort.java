@@ -12,4 +12,6 @@ public interface RepositoryPort {
     
     int getStock(int productId);
 
+    void updateStock(int productId, int stock);
+
 }

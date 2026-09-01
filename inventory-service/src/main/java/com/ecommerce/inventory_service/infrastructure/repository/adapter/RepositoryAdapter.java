@@ -49,4 +49,18 @@ public class RepositoryAdapter implements RepositoryPort {
             .map(ProductDto::getStock)
             .orElse(0);
     }
+
+    @Override
+    public void updateStock(int productId, int stock) {
+        productRepo
+        .findById(productId)
+        .ifPresentOrElse(
+            dbEntity -> updateStockAndPersist(dbEntity, stock), 
+            () -> productRepo.save(ProductDto.from(productId, stock)));
+    }
+
+    private void updateStockAndPersist(ProductDto productDto, int stock) {
+        productDto.updateStock(stock);
+        productRepo.save(productDto);
+    }
 }
