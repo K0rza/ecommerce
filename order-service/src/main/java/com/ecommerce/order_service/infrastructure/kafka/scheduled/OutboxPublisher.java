@@ -26,7 +26,12 @@ public class OutboxPublisher {
 
     private void sendToKafka(OrderOutboxTable dto) {
         try {
-            kafkaTemplate.send("order-created", mapper.writeValueAsString(dto.toKafkaEvent())).thenRun(() -> dto.published());
+            kafkaTemplate.send("order-created", mapper.writeValueAsString(dto.toKafkaEvent()))
+                .thenRun(() -> {
+                    dto.published();
+                    jpaAdapter.save(dto);
+                }
+            );
         } catch (JsonProcessingException e) {
            System.err.print(e);
         }

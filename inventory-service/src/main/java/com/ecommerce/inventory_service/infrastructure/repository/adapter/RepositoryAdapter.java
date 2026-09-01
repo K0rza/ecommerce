@@ -52,6 +52,7 @@ public class RepositoryAdapter implements RepositoryPort {
             .orElse(0);
     }
 
+    @Transactional
     @Override
     public void updateStock(int productId, int stock) {
         productRepo

@@ -5,7 +5,7 @@ import org.springframework.stereotype.Controller;
 
 import com.ecommerce.inventory_service.application.usecase.OrderCreatedUseCase;
 import com.ecommerce.inventory_service.application.usecase.ProductCreateUseCase;
-import com.ecommerce.inventory_service.infrastructure.adapter.OrderStatusPublisherAdapter;
+import com.ecommerce.inventory_service.infrastructure.kafka.adapter.KafkaEventPublisherAdapter;
 import com.ecommerce.inventory_service.infrastructure.repository.adapter.RepositoryAdapter;
 
 @Controller
@@ -17,7 +17,7 @@ public class CreateApplicationBean {
     }
 
     @Bean
-    public OrderCreatedUseCase toOrderCreatedUseCase(RepositoryAdapter repositoryAdapter, OrderStatusPublisherAdapter publisherAdapter) {
+    public OrderCreatedUseCase toOrderCreatedUseCase(RepositoryAdapter repositoryAdapter, KafkaEventPublisherAdapter publisherAdapter) {
         return new OrderCreatedUseCase(repositoryAdapter, publisherAdapter);
     } 
 

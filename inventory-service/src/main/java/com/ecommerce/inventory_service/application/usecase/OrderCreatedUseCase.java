@@ -28,7 +28,9 @@ public class OrderCreatedUseCase {
 
                     inventory.decreaseStock();
 
-                    publisher.orderPersistAndCreatedSuccessfuly(inventory);
+                    publisher.publisCreatedSuccessfulyEvent(inventory);
+
+                    repositoryPort.updateStock(inventory.getProductId(), inventory.getStock());
                     return;
                 } catch (StockUpdateConflictException e) {
                     if (attempt == MAX_ATTEMPTS) throw e;

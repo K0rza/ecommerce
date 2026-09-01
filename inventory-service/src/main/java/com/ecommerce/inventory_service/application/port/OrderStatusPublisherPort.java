@@ -4,8 +4,8 @@ import com.ecommerce.inventory_service.domain.entity.Inventory;
 
 public interface OrderStatusPublisherPort {
 
-    void orderPersistAndCreatedSuccessfuly(Inventory inventory);
-
     void orderOutOfStock(int orderId);
+
+    void publisCreatedSuccessfulyEvent(Inventory inventory);
 
 }
