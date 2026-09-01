@@ -5,18 +5,12 @@ import org.springframework.stereotype.Controller;
 
 import com.ecommerce.inventory_service.application.usecase.OrderCreatedUseCase;
 import com.ecommerce.inventory_service.application.usecase.ProductCreateUseCase;
-import com.ecommerce.inventory_service.application.usecase.ProductStock;
 import com.ecommerce.inventory_service.infrastructure.adapter.DatabaseServiceAdapter;
 import com.ecommerce.inventory_service.infrastructure.adapter.OrderStatusPublisherAdapter;
 import com.ecommerce.inventory_service.infrastructure.adapter.RepositoryAdapter;
 
 @Controller
 public class CreateApplicationBean {
-
-    @Bean
-    public ProductStock toProductStock() {
-        return new ProductStock();
-    }
 
     @Bean
     public ProductCreateUseCase toProductCreateUseCase(RepositoryAdapter repo) {
