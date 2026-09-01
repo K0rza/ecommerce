@@ -1,4 +1,4 @@
-package com.ecommerce.order_service.infrastructure.scheduled;
+package com.ecommerce.order_service.infrastructure.kafka.scheduled;
 
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -26,7 +26,7 @@ public class OutboxPublisher {
 
     private void sendToKafka(OrderOutboxTable dto) {
         try {
-            kafkaTemplate.send("order-created", mapper.writeValueAsString(dto)).thenRun(() -> dto.published());
+            kafkaTemplate.send("order-created", mapper.writeValueAsString(dto.toKafkaEvent())).thenRun(() -> dto.published());
         } catch (JsonProcessingException e) {
            System.err.print(e);
         }

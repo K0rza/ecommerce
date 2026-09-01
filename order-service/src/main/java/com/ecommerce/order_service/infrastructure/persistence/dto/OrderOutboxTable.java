@@ -4,6 +4,7 @@ import org.springframework.data.annotation.Id;
 
 import com.ecommerce.order_service.domain.entity.ORDER_STATUS;
 import com.ecommerce.order_service.domain.event.OrderCreatedEvent;
+import com.ecommerce.order_service.infrastructure.kafka.contract.OrderEvent;
 
 import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
@@ -43,5 +44,9 @@ public class OrderOutboxTable {
 
     public static OrderOutboxTable to(OrderCreatedEvent event) {
         return new OrderOutboxTable(event.orderId(), event.productId(), event.quantity(), event.orderStatus());
+    }
+
+    public OrderEvent toKafkaEvent() {
+        return new OrderEvent(orderId, productId, quantity);
     }
 }
