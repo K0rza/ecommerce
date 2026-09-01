@@ -5,8 +5,8 @@ import org.springframework.stereotype.Service;
 import com.ecommerce.inventory_service.application.port.OrderStatusPublisherPort;
 import com.ecommerce.inventory_service.domain.entity.Inventory;
 import com.ecommerce.inventory_service.infrastructure.kafka.event.writer.OrderEventPublisher;
-import com.ecommerce.inventory_service.infrastructure.repository.JpaInventoryAdapter;
-import com.ecommerce.inventory_service.infrastructure.repository.dto.InventoryDto;
+import com.ecommerce.inventory_service.infrastructure.repository.JpaProductInterface;
+import com.ecommerce.inventory_service.infrastructure.repository.dto.ProductDto;
 
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
@@ -15,13 +15,13 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class OrderStatusPublisherAdapter implements OrderStatusPublisherPort {
 
-    private final JpaInventoryAdapter jpaAdapter; 
+    private final JpaProductInterface jpaAdapter; 
     private final OrderEventPublisher publisher;
 
     @Transactional
     @Override
     public void orderPersistAndCreatedSuccessfuly(Inventory inventory) {
-       jpaAdapter.save(new InventoryDto(inventory.getProductId(), inventory.getStock()));
+       jpaAdapter.save(ProductDto.from(inventory));
        publisher.publishOrderCreated(inventory.getOrderId());
     }
 

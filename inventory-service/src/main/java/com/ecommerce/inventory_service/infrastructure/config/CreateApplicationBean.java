@@ -5,9 +5,8 @@ import org.springframework.stereotype.Controller;
 
 import com.ecommerce.inventory_service.application.usecase.OrderCreatedUseCase;
 import com.ecommerce.inventory_service.application.usecase.ProductCreateUseCase;
-import com.ecommerce.inventory_service.infrastructure.adapter.DatabaseServiceAdapter;
 import com.ecommerce.inventory_service.infrastructure.adapter.OrderStatusPublisherAdapter;
-import com.ecommerce.inventory_service.infrastructure.adapter.RepositoryAdapter;
+import com.ecommerce.inventory_service.infrastructure.repository.adapter.RepositoryAdapter;
 
 @Controller
 public class CreateApplicationBean {
@@ -18,8 +17,8 @@ public class CreateApplicationBean {
     }
 
     @Bean
-    public OrderCreatedUseCase toOrderCreatedUseCase(DatabaseServiceAdapter dbAdapter, OrderStatusPublisherAdapter publisherAdapter) {
-        return new OrderCreatedUseCase(dbAdapter, publisherAdapter);
+    public OrderCreatedUseCase toOrderCreatedUseCase(RepositoryAdapter repositoryAdapter, OrderStatusPublisherAdapter publisherAdapter) {
+        return new OrderCreatedUseCase(repositoryAdapter, publisherAdapter);
     } 
 
 }

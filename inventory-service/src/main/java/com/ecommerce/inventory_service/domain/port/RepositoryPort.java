@@ -9,5 +9,7 @@ public interface RepositoryPort {
     void ifNewProductOrElse(Product product, Consumer<Product> createNewProductJob, Consumer<Integer> rejectProductJob);
 
     void create(Product product);
+    
+    int getStock(int productId);
 
 }
