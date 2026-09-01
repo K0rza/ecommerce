@@ -5,6 +5,7 @@ import com.ecommerce.inventory_service.domain.entity.Product;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 
 @Entity
 @Table(name = "product")
@@ -16,7 +17,9 @@ public class ProductDto {
     private int productId;
     private int eventId;
     private int stock;
-
+    @Version
+    private int version;
+    
     public ProductDto() {}
 
     private ProductDto(int productId, int eventId, int stock) {

@@ -2,8 +2,10 @@ package com.ecommerce.inventory_service.infrastructure.repository.adapter;
 
 import java.util.function.Consumer;
 
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.stereotype.Component;
 
+import com.ecommerce.inventory_service.application.exception.StockUpdateConflictException;
 import com.ecommerce.inventory_service.domain.entity.Product;
 import com.ecommerce.inventory_service.domain.port.RepositoryPort;
 import com.ecommerce.inventory_service.infrastructure.repository.JpaProductInterface;
@@ -61,6 +63,10 @@ public class RepositoryAdapter implements RepositoryPort {
 
     private void updateStockAndPersist(ProductDto productDto, int stock) {
         productDto.updateStock(stock);
-        productRepo.save(productDto);
+        try {
+            productRepo.saveAndFlush(productDto);
+        } catch (ObjectOptimisticLockingFailureException e) {
+            throw new StockUpdateConflictException(productDto.getProductId());
+        }
     }
 }
