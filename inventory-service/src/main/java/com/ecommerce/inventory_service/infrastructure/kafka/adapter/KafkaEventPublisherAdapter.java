@@ -20,7 +20,7 @@ public class KafkaEventPublisherAdapter implements OrderStatusPublisherPort {
 
     @Override
     public void publisCreatedSuccessfulyEvent(Inventory inventory) {
-        publisher.publishOrderCreated(inventory.getProductId());
+        publisher.publishOrderCreated(inventory.getOrderId());
     }
 
 }
