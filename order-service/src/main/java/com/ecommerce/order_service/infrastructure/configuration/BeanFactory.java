@@ -6,24 +6,24 @@ import org.springframework.stereotype.Component;
 import com.ecommerce.order_service.application.usecases.CreateOrderUseCase;
 import com.ecommerce.order_service.application.usecases.OrderOutOfStockUseCase;
 import com.ecommerce.order_service.application.usecases.OrderSuccessfullyCreatedUseCase;
-import com.ecommerce.order_service.infrastructure.adapters.JpaOrderPersistentAdapter;
-import com.ecommerce.order_service.infrastructure.adapters.OutboxEventPublisherAdapter;
+import com.ecommerce.order_service.infrastructure.adapters.OrderCreationAdapter;
+import com.ecommerce.order_service.infrastructure.adapters.OrderStatusUpdateAdapter;
 
 @Component
 public class BeanFactory {
 
     @Bean
-    public CreateOrderUseCase toUseCase(OutboxEventPublisherAdapter adapter) {
+    public CreateOrderUseCase toUseCase(OrderCreationAdapter adapter) {
         return new CreateOrderUseCase(adapter);
     }
 
     @Bean
-    public OrderOutOfStockUseCase toOrderOutOfStockUseCase(JpaOrderPersistentAdapter adapter) {
+    public OrderOutOfStockUseCase toOrderOutOfStockUseCase(OrderStatusUpdateAdapter adapter) {
         return new OrderOutOfStockUseCase(adapter);
     }
-    
+
     @Bean
-    public OrderSuccessfullyCreatedUseCase toOrderSuccessfullyCreatedUseCase(JpaOrderPersistentAdapter adapter) {
+    public OrderSuccessfullyCreatedUseCase toOrderSuccessfullyCreatedUseCase(OrderStatusUpdateAdapter adapter) {
         return new OrderSuccessfullyCreatedUseCase(adapter);
     }
 }

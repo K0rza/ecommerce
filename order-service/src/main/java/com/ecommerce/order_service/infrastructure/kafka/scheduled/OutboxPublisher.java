@@ -4,7 +4,7 @@ import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
-import com.ecommerce.order_service.infrastructure.persistence.adapter.JpaOrderOutboxTableAdapter;
+import com.ecommerce.order_service.infrastructure.persistence.adapter.OrderOutboxJpaRepository;
 import com.ecommerce.order_service.infrastructure.persistence.dto.OrderOutboxDto;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -15,13 +15,13 @@ import lombok.RequiredArgsConstructor;
 @Component
 public class OutboxPublisher {
 
-    private final JpaOrderOutboxTableAdapter jpaAdapter;
+    private final OrderOutboxJpaRepository orderOutboxRepository;
     private final ObjectMapper mapper;
     private final KafkaTemplate<String, String> kafkaTemplate;
 
     @Scheduled(fixedRate = 1000)
     public void publish() {
-        jpaAdapter.findAll().stream().filter(item -> item.isNotPublished()).forEach(this::sendToKafka);
+        orderOutboxRepository.findAll().stream().filter(item -> item.isNotPublished()).forEach(this::sendToKafka);
     }
 
     private void sendToKafka(OrderOutboxDto dto) {
@@ -29,7 +29,7 @@ public class OutboxPublisher {
             kafkaTemplate.send("order-created", mapper.writeValueAsString(dto.toKafkaEvent()))
                 .thenRun(() -> {
                     dto.published();
-                    jpaAdapter.save(dto);
+                    orderOutboxRepository.save(dto);
                 }
             );
         } catch (JsonProcessingException e) {

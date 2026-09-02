@@ -5,7 +5,7 @@ import java.util.Optional;
 import org.springframework.stereotype.Service;
 
 import com.ecommerce.order_service.domain.entity.Order;
-import com.ecommerce.order_service.infrastructure.persistence.adapter.JpaOrderTableAdapter;
+import com.ecommerce.order_service.infrastructure.persistence.adapter.OrderJpaRepository;
 import com.ecommerce.order_service.infrastructure.persistence.dto.OrderDto;
 
 import jakarta.transaction.Transactional;
@@ -13,23 +13,23 @@ import lombok.RequiredArgsConstructor;
 
 @Service
 @RequiredArgsConstructor
-public class JpaOrderAdapter {
-    
-    private final JpaOrderTableAdapter jpaAdapter;
+public class OrderPersistenceService {
+
+    private final OrderJpaRepository orderRepository;
 
     @Transactional
     public void persist(Order order) {
         OrderDto orderEntity = OrderDto.fromDomain(order);
 
-        jpaAdapter.save(orderEntity);
+        orderRepository.save(orderEntity);
     }
 
     @Transactional
     public void persist(OrderDto dto) {
-        jpaAdapter.save(dto);
+        orderRepository.save(dto);
     }
 
     public Optional<OrderDto> findById(int orderId) {
-        return jpaAdapter.findById(orderId);
-    } 
+        return orderRepository.findById(orderId);
+    }
 }
