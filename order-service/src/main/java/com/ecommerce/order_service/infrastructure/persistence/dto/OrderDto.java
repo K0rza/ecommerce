@@ -12,7 +12,7 @@ import lombok.NoArgsConstructor;
 @Entity
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class OrderTable {
+public class OrderDto {
 
     @Id
     private int orderId;
@@ -21,16 +21,22 @@ public class OrderTable {
     private int quantity;
     private ORDER_STATUS status;
 
-    private OrderTable(int orderId, String customerId, int productId, int quantity, ORDER_STATUS status) {
+    private OrderDto(int orderId, String customerId, int productId, int quantity, ORDER_STATUS status) {
         this.orderId = orderId;
         this.customerId = customerId;
         this.productId = productId;
         this.quantity = quantity;
         this.status = status;
     }
-
-    public static OrderTable fromDomain(Order order) {
-        return new OrderTable(order.getOrderId(), order.getCustomerId(), order.getProductId(), order.getQuantity(), order.getStatus());
+    
+    public static OrderDto fromDomain(Order order) {
+        return new OrderDto(order.getOrderId(), order.getCustomerId(), order.getProductId(), order.getQuantity(), order.getStatus());
     }
+    
+    public Order toDomain() {
+        return new Order(orderId, customerId, productId, quantity, status);
+    }
+    
+    public void setOrderStatus(ORDER_STATUS orderStatus) { this.status = orderStatus; }
 
 }

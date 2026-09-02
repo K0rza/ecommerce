@@ -5,7 +5,7 @@ import org.springframework.stereotype.Component;
 import com.ecommerce.order_service.application.port.OrderCreatedEventPublisher;
 import com.ecommerce.order_service.domain.event.OrderCreatedEvent;
 import com.ecommerce.order_service.infrastructure.persistence.adapter.JpaOrderOutboxTableAdapter;
-import com.ecommerce.order_service.infrastructure.persistence.dto.OrderOutboxTable;
+import com.ecommerce.order_service.infrastructure.persistence.dto.OrderOutboxDto;
 
 import lombok.RequiredArgsConstructor;
 
@@ -17,7 +17,7 @@ public class OrderCreatedEventPublisherAdapter implements OrderCreatedEventPubli
 
     @Override
     public void publish(OrderCreatedEvent event) {
-        OrderOutboxTable dto = OrderOutboxTable.to(event);
+        OrderOutboxDto dto = OrderOutboxDto.to(event);
         
         jpaAdapter.save(dto);
     }

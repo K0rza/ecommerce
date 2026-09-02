@@ -11,7 +11,7 @@ import jakarta.persistence.Table;
 
 @Table(name = "OrderOutbox")
 @Entity
-public class OrderOutboxTable {
+public class OrderOutboxDto {
 
     @Id
     private int orderId;
@@ -20,9 +20,9 @@ public class OrderOutboxTable {
     private ORDER_STATUS status;
     private boolean published;
 
-    public OrderOutboxTable() {}
+    public OrderOutboxDto() {}
 
-    private OrderOutboxTable(int orderId, int productId, int quantity, ORDER_STATUS status) {
+    private OrderOutboxDto(int orderId, int productId, int quantity, ORDER_STATUS status) {
         this.orderId = orderId;
         this.productId = productId;
         this.quantity = quantity;
@@ -42,8 +42,8 @@ public class OrderOutboxTable {
 
     public boolean isNotPublished() { return !published;  }
 
-    public static OrderOutboxTable to(OrderCreatedEvent event) {
-        return new OrderOutboxTable(event.orderId(), event.productId(), event.quantity(), event.orderStatus());
+    public static OrderOutboxDto to(OrderCreatedEvent event) {
+        return new OrderOutboxDto(event.orderId(), event.productId(), event.quantity(), event.orderStatus());
     }
 
     public OrderEvent toKafkaEvent() {
