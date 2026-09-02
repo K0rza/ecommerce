@@ -13,7 +13,7 @@ import lombok.RequiredArgsConstructor;
 
 @Service
 @RequiredArgsConstructor
-public class DatabaseService {
+public class JpaOrderAdapter {
     
     private final JpaOrderTableAdapter jpaAdapter;
 

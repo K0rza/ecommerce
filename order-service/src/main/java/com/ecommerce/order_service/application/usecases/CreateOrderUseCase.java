@@ -1,6 +1,6 @@
 package com.ecommerce.order_service.application.usecases;
 
-import com.ecommerce.order_service.application.port.PersistServicePort;
+import com.ecommerce.order_service.application.port.EventPublisherPort;
 import com.ecommerce.order_service.domain.entity.ORDER_STATUS;
 import com.ecommerce.order_service.domain.entity.Order;
 import com.ecommerce.order_service.domain.entity.OrderRequest;
@@ -8,10 +8,10 @@ import com.ecommerce.order_service.domain.event.OrderCreatedEvent;
 
 public class CreateOrderUseCase {
     
-    private final PersistServicePort persistService;
+    private final EventPublisherPort persistService;
 
-    public CreateOrderUseCase(PersistServicePort persistService) {
-        this.persistService = persistService;
+    public CreateOrderUseCase(EventPublisherPort eventPublisher) {
+        this.persistService = eventPublisher;
     }
 
     public void process(OrderRequest request) {

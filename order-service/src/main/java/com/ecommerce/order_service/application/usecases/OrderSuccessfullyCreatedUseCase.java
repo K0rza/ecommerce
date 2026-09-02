@@ -1,13 +1,13 @@
 package com.ecommerce.order_service.application.usecases;
 
-import com.ecommerce.order_service.application.port.PersistServicePort;
+import com.ecommerce.order_service.application.port.OrderPersistentPort;
 import com.ecommerce.order_service.domain.entity.ORDER_STATUS;
 
 public class OrderSuccessfullyCreatedUseCase {
 
-    private final PersistServicePort repositoryPort;
+    private final OrderPersistentPort repositoryPort;
 
-    public OrderSuccessfullyCreatedUseCase(PersistServicePort repositoryPort) {
+    public OrderSuccessfullyCreatedUseCase(OrderPersistentPort repositoryPort) {
         this.repositoryPort = repositoryPort;
     }
 

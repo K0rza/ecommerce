@@ -33,10 +33,6 @@ public class OrderDto {
         return new OrderDto(order.getOrderId(), order.getCustomerId(), order.getProductId(), order.getQuantity(), order.getStatus());
     }
     
-    public Order toDomain() {
-        return new Order(orderId, customerId, productId, quantity, status);
-    }
-    
     public void setOrderStatus(ORDER_STATUS orderStatus) { this.status = orderStatus; }
 
 }
