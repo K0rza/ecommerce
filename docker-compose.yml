@@ -29,6 +29,20 @@ services:
         networks:
             - ecomm-network
 
+    order-db:
+        image: postgres:16-alpine
+        container_name: order-db
+        restart: always
+        ports:
+            - 1903:5432
+        environment:
+            - POSTGRES_PASSWORD=qwe123
+            - POSTGRES_USER=hilhan
+            - POSTGRES_DB=order_db
+        volumes:
+            - order-db:/var/lib/postgresql/data
+        networks:
+            - ecomm-network
     cache:
         image: redis:7.2-alpine
         container_name: ecomm-redis
@@ -69,6 +83,7 @@ services:
 volumes:
     product-db:
     inventory-db:
+    order-db:
 
 networks:
   ecomm-network:

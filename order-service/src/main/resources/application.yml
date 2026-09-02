@@ -1,0 +1,20 @@
+spring:
+    application:
+        name: "order-service"
+
+    datasource:
+        url: jdbc:postgresql://localhost:1903/order_db
+        username: hilhan
+        password: qwe123
+
+    kafka:
+        bootstrap-servers: localhost:9092
+        consumer:
+            group-id: order-service
+            key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+            value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+            
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka

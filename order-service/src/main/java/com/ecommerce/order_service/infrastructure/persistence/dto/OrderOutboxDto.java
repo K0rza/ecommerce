@@ -1,12 +1,11 @@
 package com.ecommerce.order_service.infrastructure.persistence.dto;
 
-import org.springframework.data.annotation.Id;
-
 import com.ecommerce.order_service.domain.entity.ORDER_STATUS;
 import com.ecommerce.order_service.domain.event.OrderCreatedEvent;
 import com.ecommerce.order_service.infrastructure.kafka.contract.OrderEvent;
 
 import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 
 @Table(name = "OrderOutbox")
