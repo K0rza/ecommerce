@@ -8,9 +8,11 @@ import com.ecommerce.order_service.application.usecases.OrderOutOfStockUseCase;
 import com.ecommerce.order_service.application.usecases.OrderSuccessfullyCreatedUseCase;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @RequiredArgsConstructor
 @Component
+@Slf4j
 public class ReadOrderCreatedStatusEvents {
 
     private final OrderOutOfStockUseCase orderOutOfStockUseCase;
@@ -18,16 +20,25 @@ public class ReadOrderCreatedStatusEvents {
 
     @KafkaListener(topics = "order-created-successfully")
     public void readOrderSuccessfullyCreatedEvent(ConsumerRecord<String, String> event) {
+        log.info("%s::read order-created-successfully begins.".formatted(this.getClass().getSimpleName()));
+
         int orderId = Integer.valueOf(event.value());
-
+        log.debug("%s::read order-created-successfully orderId: %s.".formatted(this.getClass().getSimpleName(), orderId));
+        
         orderSuccessfullyCreatedUseCase.execute(orderId);
+        
+        log.info("%s::read order-created-successfully ends.".formatted(this.getClass().getSimpleName()));
     }
-
+    
     @KafkaListener(topics = "order-out-of-stock")
     public void readOrderOutOfStockEvent(ConsumerRecord<String, String> event) {
+        log.info("%s::read order-out-of-stock begins.".formatted(this.getClass().getSimpleName()));
+        
         int orderId = Integer.valueOf(event.value());
-
+        log.debug("%s::read order-out-of-stock orderId: %s.".formatted(this.getClass().getSimpleName(), orderId));
+        
         orderOutOfStockUseCase.execute(orderId);
+        log.info("%s::read order-out-of-stock ends.".formatted(this.getClass().getSimpleName()));
     }
 
 }
