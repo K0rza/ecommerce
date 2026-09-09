@@ -1,7 +1,7 @@
 package com.ecommerce.inventory_service.application.usecase;
 
+import com.ecommerce.inventory_service.application.port.RepositoryPort;
 import com.ecommerce.inventory_service.domain.entity.Product;
-import com.ecommerce.inventory_service.domain.port.RepositoryPort;
 
 public class ProductCreateUseCase {
 

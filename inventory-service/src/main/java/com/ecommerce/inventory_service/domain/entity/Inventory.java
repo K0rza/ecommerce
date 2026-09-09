@@ -1,6 +1,6 @@
 package com.ecommerce.inventory_service.domain.entity;
 
-import com.ecommerce.inventory_service.application.exception.OutOfStockException;
+import com.ecommerce.inventory_service.domain.exception.OutOfStockException;
 import com.ecommerce.inventory_service.domain.value.OrderRecord;
 
 public class Inventory {

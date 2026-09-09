@@ -1,4 +1,4 @@
-package com.ecommerce.inventory_service.domain.port;
+package com.ecommerce.inventory_service.application.port;
 
 import java.util.function.Consumer;
 

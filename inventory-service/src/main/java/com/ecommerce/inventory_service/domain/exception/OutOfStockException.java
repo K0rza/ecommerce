@@ -1,4 +1,4 @@
-package com.ecommerce.inventory_service.application.exception;
+package com.ecommerce.inventory_service.domain.exception;
 
 public class OutOfStockException extends RuntimeException {
 

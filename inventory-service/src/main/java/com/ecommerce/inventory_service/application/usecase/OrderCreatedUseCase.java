@@ -1,10 +1,10 @@
 package com.ecommerce.inventory_service.application.usecase;
 
-import com.ecommerce.inventory_service.application.exception.OutOfStockException;
-import com.ecommerce.inventory_service.application.exception.StockUpdateConflictException;
 import com.ecommerce.inventory_service.application.port.OrderStatusPublisherPort;
+import com.ecommerce.inventory_service.application.port.RepositoryPort;
 import com.ecommerce.inventory_service.domain.entity.Inventory;
-import com.ecommerce.inventory_service.domain.port.RepositoryPort;
+import com.ecommerce.inventory_service.domain.exception.OutOfStockException;
+import com.ecommerce.inventory_service.domain.exception.StockUpdateConflictException;
 import com.ecommerce.inventory_service.domain.value.OrderRecord;
 
 public class OrderCreatedUseCase {
