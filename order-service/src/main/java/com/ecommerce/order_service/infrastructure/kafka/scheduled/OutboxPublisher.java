@@ -24,9 +24,7 @@ public class OutboxPublisher {
     @Scheduled(fixedRate = 1000)
     public void publish() {
         orderOutboxRepository
-            .findAll()
-            .stream()
-            .filter(item -> item.isNotPublished())
+            .findByPublishedFalse()
             .forEach(this::sendToKafka);
     }
 

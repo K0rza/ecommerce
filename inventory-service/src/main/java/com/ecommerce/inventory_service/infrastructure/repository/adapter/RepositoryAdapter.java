@@ -24,24 +24,24 @@ public class RepositoryAdapter implements RepositoryPort {
 
     @Override
     public void ifNewProductOrElse(Product product, Consumer<Product> createNewProductJob, Consumer<Integer> rejectProductJob) {
-        log.error("RepositoryAdapter::ifNewProductOrElse begins. eventId: " + product.getEventId());
+        log.info("RepositoryAdapter::ifNewProductOrElse begins. eventId: " + product.getEventId());
 
         productRepo.findByEventId(product.getEventId())
             .ifPresentOrElse(
                 p -> rejectProductJob.accept(p.getEventId()), 
                 () -> createNewProductJob.accept(product));
 
-        log.error("RepositoryAdapter::ifNewProductOrElse ends.");
+        log.info("RepositoryAdapter::ifNewProductOrElse ends.");
     }
 
     @Transactional
     @Override
     public void create(Product product) {
-        log.error("RepositoryAdapter::create begins. productId: " + product.getProductId());
+        log.info("RepositoryAdapter::create begins. productId: " + product.getProductId());
 
         productRepo.save(ProductDto.from(product));
 
-        log.error("RepositoryAdapter::create ends.");
+        log.info("RepositoryAdapter::create ends.");
     }
 
     @Override
