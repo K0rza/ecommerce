@@ -5,7 +5,7 @@ import org.springframework.http.ProblemDetail;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
-import com.ecommerce.inventory_service.domain.exception.IllegalEventIdempotent;
+import com.ecommerce.inventory_service.application.exception.IllegalEventIdempotent;
 
 @RestControllerAdvice
 public class Rfc7808Service {

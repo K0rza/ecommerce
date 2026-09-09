@@ -5,9 +5,9 @@ import java.util.function.Consumer;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.stereotype.Component;
 
+import com.ecommerce.inventory_service.application.exception.StockUpdateConflictException;
 import com.ecommerce.inventory_service.application.port.RepositoryPort;
 import com.ecommerce.inventory_service.domain.entity.Product;
-import com.ecommerce.inventory_service.domain.exception.StockUpdateConflictException;
 import com.ecommerce.inventory_service.infrastructure.repository.JpaProductInterface;
 import com.ecommerce.inventory_service.infrastructure.repository.dto.ProductDto;
 
