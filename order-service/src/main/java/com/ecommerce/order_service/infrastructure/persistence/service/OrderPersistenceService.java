@@ -21,14 +21,10 @@ public class OrderPersistenceService {
 
     @Transactional
     public void persist(Order order) {
-        log.info("%s::persist begins.".formatted(this.getClass().getSimpleName()));
-
         OrderDto orderEntity = OrderDto.fromDomain(order);
 
         orderRepository.save(orderEntity);
-        log.info("%s::persist data saved to db. %s".formatted(this.getClass().getSimpleName(), orderEntity));
-
-        log.info("%s::persist ends.".formatted(this.getClass().getSimpleName()));
+        log.debug("%s::persist data saved to db. %s".formatted(this.getClass().getSimpleName(), orderEntity));
     }
 
     @Transactional

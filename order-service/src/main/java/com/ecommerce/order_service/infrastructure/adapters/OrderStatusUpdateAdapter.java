@@ -26,13 +26,9 @@ public class OrderStatusUpdateAdapter implements OrderStatusUpdatePort {
     }
 
     private void applyStatus(OrderDto dto, ORDER_STATUS status) {
-        log.info("%s::applyStatus begins.".formatted(this.getClass().getSimpleName()));
-
         dto.setOrderStatus(status);
 
         orderPersistenceService.persist(dto);
-        log.info("%s::applyStatus order response persisted to db. %s".formatted(this.getClass().getSimpleName(), dto));
-
-        log.info("%s::applyStatus ends.".formatted(this.getClass().getSimpleName()));
+        log.debug("%s::applyStatus order response persisted to db. %s".formatted(this.getClass().getSimpleName(), dto));
     }
 }

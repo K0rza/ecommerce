@@ -1,14 +1,14 @@
 package com.ecommerce.inventory_service.infrastructure.config;
 
 import org.springframework.context.annotation.Bean;
-import org.springframework.stereotype.Controller;
+import org.springframework.stereotype.Component;
 
 import com.ecommerce.inventory_service.application.usecase.OrderCreatedUseCase;
 import com.ecommerce.inventory_service.application.usecase.ProductCreateUseCase;
 import com.ecommerce.inventory_service.infrastructure.kafka.adapter.KafkaEventPublisherAdapter;
 import com.ecommerce.inventory_service.infrastructure.repository.adapter.RepositoryAdapter;
 
-@Controller
+@Component
 public class CreateApplicationBean {
 
     @Bean

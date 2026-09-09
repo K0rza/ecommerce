@@ -17,7 +17,7 @@ public class InventoryCircuitBreaker {
 
     @CircuitBreaker(name = "inventoryCB", fallbackMethod = "fallbackGetStock")
     public Integer checkStock(String sku) {
-        log.info("{} product stock is queing from inventory-service", sku);
+        log.debug("{} product stock is queing from inventory-service", sku);
         return inventoryClient.getStock(sku);
     }
 

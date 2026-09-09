@@ -23,14 +23,10 @@ public class OrderCreationAdapter implements OrderCreationPort {
     @Transactional
     @Override
     public void createOrder(Order order, OrderCreatedEvent event) {
-        log.info("%s::createOrder begins.".formatted(this.getClass().getSimpleName()));
-
         orderPersistenceService.persist(order);
         log.debug("%s::createOrder persist the order completed. %s".formatted(this.getClass().getSimpleName(), order));
 
         publisher.publish(event);
         log.debug("%s::createOrder publish the event completed. %s".formatted(this.getClass().getSimpleName(), event));
-
-        log.info("%s::createOrder ends.".formatted(this.getClass().getSimpleName()));
     }
 }

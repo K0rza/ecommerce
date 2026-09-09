@@ -29,8 +29,6 @@ public class OutboxPublisher {
     }
 
     private void sendToKafka(OrderOutboxDto dto) {
-        log.info("%s::sendToKafka begins.".formatted(this.getClass().getSimpleName()));
-
         try {
             kafkaTemplate.send("order-created", mapper.writeValueAsString(dto.toKafkaEvent()))
                 .thenRun(() -> {
@@ -42,7 +40,5 @@ public class OutboxPublisher {
         } catch (JsonProcessingException e) {
            log.error(e.getMessage());
         }
-
-        log.info("%s::sendToKafka ends.".formatted(this.getClass().getSimpleName()));
     }
 }

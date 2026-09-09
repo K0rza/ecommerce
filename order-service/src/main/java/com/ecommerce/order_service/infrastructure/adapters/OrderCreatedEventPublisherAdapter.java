@@ -19,14 +19,10 @@ public class OrderCreatedEventPublisherAdapter implements OrderCreatedEventPubli
 
     @Override
     public void publish(OrderCreatedEvent event) {
-        log.info("%s::publish begins.".formatted(this.getClass().getSimpleName()));
-        
         OrderOutboxDto dto = OrderOutboxDto.to(event);
         
         orderOutboxRepository.save(dto);
         log.debug("%s::save dto to outbox table to publish.".formatted(this.getClass().getSimpleName(), dto));
-        
-        log.info("%s::publish ends.".formatted(this.getClass().getSimpleName()));
     }
 
 }
