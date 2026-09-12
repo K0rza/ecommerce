@@ -1,4 +1,4 @@
-package com.ecommerce.api_gateway.application.usecase;
+package com.ecommerce.api_gateway.application.usecases;
 
 import com.ecommerce.api_gateway.domain.user.Authentication;
 

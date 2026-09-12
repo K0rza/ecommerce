@@ -4,7 +4,7 @@ import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 
-import com.ecommerce.inventory_service.application.usecase.ProductCreateUseCase;
+import com.ecommerce.inventory_service.application.usecases.ProductCreateUseCase;
 import com.ecommerce.inventory_service.infrastructure.kafka.entity.ProductEventType;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;

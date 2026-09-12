@@ -4,7 +4,7 @@ import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 
-import com.ecommerce.inventory_service.application.usecase.OrderCreatedUseCase;
+import com.ecommerce.inventory_service.application.usecases.OrderCreatedUseCase;
 import com.ecommerce.inventory_service.domain.value.OrderRecord;
 import com.fasterxml.jackson.databind.ObjectMapper;
 

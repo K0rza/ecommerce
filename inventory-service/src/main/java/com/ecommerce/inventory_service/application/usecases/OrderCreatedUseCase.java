@@ -1,4 +1,4 @@
-package com.ecommerce.inventory_service.application.usecase;
+package com.ecommerce.inventory_service.application.usecases;
 
 import com.ecommerce.inventory_service.application.exception.StockUpdateConflictException;
 import com.ecommerce.inventory_service.application.port.OrderStatusPublisherPort;

@@ -4,7 +4,7 @@ import org.apache.hc.core5.http.HttpStatus;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.HandlerInterceptor;
 
-import com.ecommerce.api_gateway.application.usecase.AuthenticationUseCase;
+import com.ecommerce.api_gateway.application.usecases.AuthenticationUseCase;
 import com.ecommerce.api_gateway.domain.exception.UnauthorizedException;
 
 import jakarta.servlet.http.HttpServletRequest;

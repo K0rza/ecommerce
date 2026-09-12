@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.ecommerce.product_service.application.command.CreateProductCommand;
-import com.ecommerce.product_service.application.usecase.CreateProductUseCase;
+import com.ecommerce.product_service.application.usecases.CreateProductUseCase;
 import com.ecommerce.product_service.infrastructure.exception.InventoryCircuitBreaker;
 
 import lombok.RequiredArgsConstructor;

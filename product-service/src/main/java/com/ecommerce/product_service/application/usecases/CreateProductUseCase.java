@@ -1,4 +1,4 @@
-package com.ecommerce.product_service.application.usecase;
+package com.ecommerce.product_service.application.usecases;
 
 import java.util.Random;
 
