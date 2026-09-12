@@ -1,7 +1,7 @@
 package com.ecommerce.order_service.infrastructure.configuration;
 
 import org.springframework.context.annotation.Bean;
-import org.springframework.stereotype.Component;
+import org.springframework.context.annotation.Configuration;
 
 import com.ecommerce.order_service.application.usecases.CreateOrderUseCase;
 import com.ecommerce.order_service.application.usecases.OrderOutOfStockUseCase;
@@ -10,7 +10,7 @@ import com.ecommerce.order_service.infrastructure.adapters.ApplicationLogger;
 import com.ecommerce.order_service.infrastructure.adapters.OrderCreationAdapter;
 import com.ecommerce.order_service.infrastructure.adapters.OrderStatusUpdateAdapter;
 
-@Component
+@Configuration(proxyBeanMethods = false)
 public class BeanFactory {
 
     @Bean
