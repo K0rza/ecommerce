@@ -6,11 +6,11 @@ import org.springframework.stereotype.Component;
 
 import com.ecommerce.order_service.infrastructure.persistence.adapter.OrderOutboxJpaRepository;
 import com.ecommerce.order_service.infrastructure.persistence.dto.OrderOutboxDto;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
 
 @RequiredArgsConstructor
 @Component
@@ -37,7 +37,7 @@ public class OutboxPublisher {
                     log.debug("%s::sendToKafka outbox event sent to kafka.".formatted(this.getClass().getSimpleName(), dto));
                 }
             );
-        } catch (JsonProcessingException e) {
+        } catch (JacksonException e) {
            log.error(e.getMessage());
         }
     }

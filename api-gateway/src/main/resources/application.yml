@@ -6,11 +6,12 @@ spring:
     name: api-gateway
   cloud:
     gateway:
-      mvc: # server.webmvc yerine sadece mvc yazıyoruz. Yeni endüstri standardı bu.
-        routes:
-          - id: product_route
-            uri: lb://product-service
-            predicates:
-              - Path=/api/products/**
-            filters:
-              - StripPrefix=1
+      server:
+        webmvc:
+          routes:
+            - id: product_route
+              uri: lb://product-service
+              predicates:
+                - Path=/api/products/**
+              filters:
+                - StripPrefix=1

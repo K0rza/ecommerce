@@ -1,6 +1,5 @@
 package com.ecommerce.product_service.infrastructure.persistence.adapter;
 
-import java.util.UUID;
 import java.util.stream.Stream;
 
 import org.springframework.stereotype.Component;
@@ -9,11 +8,11 @@ import com.ecommerce.product_service.application.port.ProductEventPublisher;
 import com.ecommerce.product_service.domain.event.ProductCreatedEvent;
 import com.ecommerce.product_service.infrastructure.persistence.entity.OutboxEventEntity;
 import com.ecommerce.product_service.infrastructure.persistence.repository.SpringDataProductOutboxRepository;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
 
 @Slf4j
 @RequiredArgsConstructor
@@ -48,7 +47,7 @@ public class JpaOutboxRepositoryAdapter implements ProductEventPublisher {
         String payload;
         try {
             payload = mapper.writeValueAsString(event);
-        } catch (JsonProcessingException e) {
+        } catch (JacksonException e) {
             payload = "CANNOT CONVERT INTO JSON";
         }
 

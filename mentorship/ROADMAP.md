@@ -131,7 +131,7 @@ Her iki yol da `order-service/request.http` üzerinden elle test edilerek doğru
 | inventory-service | ❌ |
 | product-service | ❌ |
 
-**Sebep:** Aktif JDK 25.0.4. Lombok kullanan üç servisten order-service Boot 4.1.1 ile Lombok 1.18.46 aldığı için sorunsuz; inventory-service ve product-service Boot 3.3.4 ile Lombok 1.18.34 aldığı için annotation processor JDK 25'te çöküyor (`ExceptionInInitializerError: com.sun.tools.javac.code.TypeTag`, ve sonucunda `@Slf4j`'nin ürettiği `log` alanı bulunamıyor). api-gateway ve discovery-service Lombok kullanmadığı için etkilenmiyor.
+**2026-09-12 mentorluk doğrulaması:** Maven 3.9.16, aktif JDK 25.0.4. Inventory ve product, Boot 3.3.4 üzerinden Lombok 1.18.34 alıyor; Java hedefleri 21. `sh mvnw -o compile` ile inventory'de `ExceptionInInitializerError: com.sun.tools.javac.code.TypeTag :: UNKNOWN` yeniden üretildi. Product'ta açık annotation processor yapılandırması bulunmadığından önce eksik `log` alanları görülüyor; yalnızca deney komutuna `-Dmaven.compiler.proc=full` eklenince aynı Lombok başlatma hatası ortaya çıkıyor. Product için sürüm ve annotation processor yapılandırması ayrı ayrı ele alınmalı. Diğer üç servisin tablodaki sonuçları önceki kayıttır; bu mentorluk adımında yeniden derlenmediler.
 
 ---
 
@@ -177,7 +177,7 @@ Her iki yol da `order-service/request.http` üzerinden elle test edilerek doğru
 
 ### Faz 1 — Zemin temizliği (sıradaki iş)
 
-1. Lombok sürümünü `1.18.46` olarak ez (inventory-service, product-service) → beş servisin de komut satırından derlenmesini sağla
+1. Lombok sürümünü `1.18.46` olarak ez (inventory-service, product-service); product-service için açık annotation processor yapılandırmasını da ekle → beş servisin de komut satırından derlenmesini sağla. İlk mentorluk adımı inventory değişikliğini kullanıcının uygulaması; henüz tamamlanmadı.
 2. Adapter paketlerini tek şemaya oturt (bulgu 8)
 3. Bean factory'leri `@Configuration` yap (bulgu 9)
 4. Bulgu 7'ye karar ver: `StockUpdateConflictException` hangi katmana ait?

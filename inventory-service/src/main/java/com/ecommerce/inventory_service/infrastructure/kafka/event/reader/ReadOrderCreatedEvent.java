@@ -6,8 +6,7 @@ import org.springframework.stereotype.Component;
 
 import com.ecommerce.inventory_service.application.usecases.OrderCreatedUseCase;
 import com.ecommerce.inventory_service.domain.value.OrderRecord;
-import com.fasterxml.jackson.databind.ObjectMapper;
-
+import tools.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 
 @RequiredArgsConstructor

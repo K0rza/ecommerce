@@ -1,8 +1,8 @@
 # E-commerce — Yazılım Mimarisi Mentorluğu
 
 Son güncelleme: 2026-09-12
-Devir sürümü: 1
-Durum: Oturumlar arası dosyalama hazır; ChatGPT projesine aktarım ve telefondan erişim doğrulaması bekliyor.
+Devir sürümü: 2
+Durum: Kullanıcının “başlayabiliriz” talebiyle Faz 1 başladı; derleme hataları yeniden üretildi, ilk uygulama adımı bekliyor.
 
 ## 1. Amaç ve geliştirici profili
 
@@ -55,7 +55,7 @@ ROADMAP'in bildirdiği durum; tamamı bu devir oturumunda yeniden test edilmedi:
 - Sipariş → stok → sipariş durum güncellemesi akışının başarılı ve yetersiz stok yolları elle test edilmiş olarak kayıtlı.
 - Optimistic locking ve stok güncellemesinde üç denemelik retry mevcut.
 - Inventory tarafında AOP/loglama çalışmasına başlanmış; ortak observability modülü planlanıyor.
-- Yol haritası iki serviste Lombok/JDK derleme sorunu bildiriyor. Bu oturumda derleme çalıştırılmadı; yeniden doğrulanmalı.
+- Inventory ve product için JDK 25.0.4 üzerinde `sh mvnw -o compile` çalıştırıldı; ikisi de başarısız. Inventory'de Lombok başlatma hatası, product'ta annotation processing çalışmadığından eksik `log` alanları görüldü. Product'ta yalnızca komut için `-Dmaven.compiler.proc=full` verilince aynı Lombok başlatma hatası ortaya çıktı.
 - Açık konular: consumer hata yönetimi, order-created idempotency, inventory Outbox, sunucuda orderId üretimi ve diğer ROADMAP bulguları.
 
 Bu devir sırasında koddan doğrudan görülenler:
@@ -72,20 +72,22 @@ Bu devir sırasında koddan doğrudan görülenler:
 - ROADMAP, PROJECT_CONTEXT, Gemini özeti ve sipariş/stok akışının ilgili sınıfları okundu.
 - Mentorluk yaklaşımı ve kullanıcı hedefleri bir araya getirildi.
 - Oturumlar arası devam için bu dosya ve kök AGENTS.md hazırlandı.
-- Uygulama kodunda değişiklik, derleme veya çalışma zamanı testi yapılmadı.
+- Maven 3.9.16 / JDK 25.0.4 doğrulandı. Sistemin Java kurulum listesinde yalnızca JDK 25 görünüyor.
+- Inventory/product Java hedefi 21; Boot parent 3.3.4 üzerinden Lombok 1.18.34 geliyor. Parent, java.version değerini maven.compiler.release için kullanıyor.
+- İki servisin derleme hataları yeniden üretildi; product'ta annotation processing ile sürüm uyumluluğunun ayrı sorunlar olduğu deneyle gösterildi.
+- Uygulama kodu ve POM dosyaları değiştirilmedi. Diğer üç servis yeniden derlenmedi; çalışma zamanı testi yapılmadı.
+- Dokümanlar kullanıcı tarafından `mentorship/` altına taşınmış. Kök AGENTS.md artık yok; sonraki IDE oturumlarında bu dosyaya açıkça yönlendirme gerekebilir.
 
 ### Güncel öncelik
 
-Kullanıcı, teknik çalışmaya devam etmeden önce bu çalışmanın ayrı proje olarak dosyalanmasını ve ChatGPT/telefon üzerinden takip edilebilmesini istedi.
+Kullanıcı dosyalama adımından sonra “tamamdır başlayabiliriz” diyerek teknik çalışmaya geçilmesini istedi. Platform erişimi asistan tarafından bağımsız olarak doğrulanmadı; devam etmek için tekrar kurulum onayı istenmeyecek.
 
-Yerel dosyalama tamamlandı. ChatGPT uygulamasını bilgisayar kullanım aracıyla yönetme girişimi, aracın uygulamaya erişim güvenlik kısıtı nedeniyle engellendi. Hesapta ChatGPT projesi oluşturulmadı; dosya yüklenmedi; mobil görünürlük doğrulanmadı.
+İlk ders: Maven'ı çalıştıran JDK ile `--release` hedefi arasındaki fark ve Lombok'un derleme zamanı rolü.
 
 ### Sıradaki adım
 
-Önce aşağıdaki aktarımı tamamla ve erişimi doğrula. Ardından ROADMAP Faz 1'e dön:
-
-1. Aktif JDK, servislerin Java hedefleri ve Lombok sürümlerini okuyup derleme sorununun güncel durumunu doğrula.
-2. Sürüm tercihini gerekçesiyle tartış; gerekli küçük düzeltmeyi uygulayıp derlemeyi doğrula.
+1. Kullanıcı inventory POM'unun properties bölümüne `<lombok.version>1.18.46</lombok.version>` ekleyip inventory klasöründe `sh mvnw -o compile` çalıştırsın; sonucu birlikte incele. Bu değişiklik henüz yapılmadı ve başarılı sonuç henüz doğrulanmadı.
+2. Inventory sonucu sonrasında product tarafında sürüm ve açık annotation processor yapılandırmasını ele al. Derleme başarısını Spring Boot'un JDK 25 üzerinde çalışma zamanı uyumluluğunun kanıtı sayma; JDK/sürüm standardizasyonu ayrı karardır.
 3. Adapter paketleri, bean configuration ve exception katmanı kararlarını sırayla ele al.
 4. Yarım kalan AOP/observability çalışmasına dön; ortak starter ve tracing adımlarına geç.
 
