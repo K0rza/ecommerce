@@ -11,7 +11,6 @@ import com.ecommerce.product_service.infrastructure.persistence.repository.Sprin
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import tools.jackson.core.JacksonException;
 import tools.jackson.databind.ObjectMapper;
 
 @Slf4j
@@ -44,12 +43,7 @@ public class JpaOutboxRepositoryAdapter implements ProductEventPublisher {
     }
 
     private void save(ProductCreatedEvent event) {
-        String payload;
-        try {
-            payload = mapper.writeValueAsString(event);
-        } catch (JacksonException e) {
-            payload = "CANNOT CONVERT INTO JSON";
-        }
+        String payload = mapper.writeValueAsString(event);
 
         OutboxEventEntity outboxEntity = OutboxEventEntity.of(event.productId(), "PRODUCT-CREATED-EVENTS", payload);
         log.error("outbox entity: "+ outboxEntity);

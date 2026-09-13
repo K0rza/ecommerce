@@ -1,4 +1,4 @@
-package com.ecommerce.product_service.domain.repository;
+package com.ecommerce.product_service.application.port;
 
 import java.util.Optional;
 

@@ -4,12 +4,11 @@ import java.util.Optional;
 
 import org.springframework.stereotype.Repository;
 
+import com.ecommerce.product_service.application.port.ProductRepository;
 import com.ecommerce.product_service.domain.model.Product;
-import com.ecommerce.product_service.domain.repository.ProductRepository;
 import com.ecommerce.product_service.infrastructure.persistence.entity.ProductJpaEntity;
 import com.ecommerce.product_service.infrastructure.persistence.repository.SpringDataProductRepository;
 
-import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -19,16 +18,16 @@ import lombok.extern.slf4j.Slf4j;
 public class JpaProductRepositoryAdapter implements ProductRepository {
 
     private final SpringDataProductRepository jpaRepo;
-    
+
     @Override
-    @Transactional
     public void save(Product product) {
-        log.error("Data is saving...");
+        log.info("JpaProductRepositoryAdapter::save begins.");
 
         ProductJpaEntity entity = ProductJpaEntity.fromDomain(product);
         jpaRepo.save(entity);
+        log.debug("Data is saving to product table...");
 
-        log.error("Data is saved.");
+        log.info("JpaProductRepositoryAdapter::save ends.");
     }
 
     @Override

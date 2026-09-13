@@ -3,10 +3,10 @@ Content-Type: application/json
 Authorization: Bearer admin-secret-token
 
 {
-    "title": "Ipad",
-    "sku": "APL-159012", 
-    "priceAmount": 10000, 
+    "title": "Pencil",
+    "sku": "PEN-159090", 
+    "priceAmount": 100, 
     "currency": "TRY", 
-    "stock": 1, 
+    "stock": 5, 
     "version": 1
 }
