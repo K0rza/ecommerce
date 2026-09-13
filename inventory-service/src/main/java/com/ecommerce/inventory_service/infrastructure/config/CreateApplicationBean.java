@@ -1,12 +1,15 @@
 package com.ecommerce.inventory_service.infrastructure.config;
 
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Component;
 
 import com.ecommerce.inventory_service.application.port.in.ProcessOrderUseCase;
 import com.ecommerce.inventory_service.application.usecases.OrderCreatedUseCase;
 import com.ecommerce.inventory_service.application.usecases.ProductCreateUseCase;
 import com.ecommerce.inventory_service.infrastructure.decorator.RetryingProcessOrderDecorator;
+import com.ecommerce.inventory_service.infrastructure.decorator.TransactionalProcessOrderDecorator;
 import com.ecommerce.inventory_service.infrastructure.kafka.adapter.KafkaEventPublisherAdapter;
 import com.ecommerce.inventory_service.infrastructure.repository.adapter.OrderRepositoryAdapter;
 import com.ecommerce.inventory_service.infrastructure.repository.adapter.ProductRepositoryAdapter;
@@ -19,10 +22,20 @@ public class CreateApplicationBean {
         return new ProductCreateUseCase(repo);
     }
 
+    @Primary 
     @Bean
-    public ProcessOrderUseCase toOrderCreatedUseCase(ProductRepositoryAdapter productRepositoryAdapter, OrderRepositoryAdapter orderRepositoryAdapter, KafkaEventPublisherAdapter publisherAdapter) {
-        var usecase =  new OrderCreatedUseCase(productRepositoryAdapter, orderRepositoryAdapter, publisherAdapter);
-        return new RetryingProcessOrderDecorator(usecase);
+    public ProcessOrderUseCase toRetryingProcessOrderDecorator(
+        @Qualifier("transactionalProcessOrder") ProcessOrderUseCase useCase) {
+            return new RetryingProcessOrderDecorator(useCase);
     } 
 
+    @Bean("transactionalProcessOrder")
+    public ProcessOrderUseCase toTransactionalProcessOrderDecorator(
+        ProductRepositoryAdapter productRepositoryAdapter, 
+        OrderRepositoryAdapter orderRepositoryAdapter, 
+        KafkaEventPublisherAdapter publisherAdapter) {
+
+        var usecase =  new OrderCreatedUseCase(productRepositoryAdapter, orderRepositoryAdapter, publisherAdapter);
+        return new TransactionalProcessOrderDecorator(usecase);
+    }
 }
