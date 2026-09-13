@@ -15,7 +15,7 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 @Slf4j
 @Component
-public class ProductCreatedEventConsumer {
+public class ReadProductCreatedEvent {
 
     private final ObjectMapper mapper;
     private final ProductCreateUseCase useCase;
