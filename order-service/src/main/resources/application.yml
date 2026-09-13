@@ -1,6 +1,10 @@
 spring:
     application:
         name: "order-service"
+    
+    jpa:
+      hibernate:
+        ddl-auto: validate
 
     datasource:
         url: jdbc:postgresql://localhost:1903/order_db

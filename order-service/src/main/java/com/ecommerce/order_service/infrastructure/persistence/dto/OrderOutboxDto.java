@@ -5,6 +5,8 @@ import com.ecommerce.order_service.domain.event.OrderCreatedEvent;
 import com.ecommerce.order_service.infrastructure.kafka.contract.OrderEvent;
 
 import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 
@@ -13,6 +15,8 @@ import jakarta.persistence.Table;
 public class OrderOutboxDto {
 
     @Id
+    @GeneratedValue(strategy = GenerationType.SEQUENCE)
+    private int eventId;
     private int orderId;
     private int productId;
     private int quantity;
@@ -46,6 +50,6 @@ public class OrderOutboxDto {
     }
 
     public OrderEvent toKafkaEvent() {
-        return new OrderEvent(orderId, productId, quantity);
+        return new OrderEvent(eventId, orderId, productId, quantity);
     }
 }

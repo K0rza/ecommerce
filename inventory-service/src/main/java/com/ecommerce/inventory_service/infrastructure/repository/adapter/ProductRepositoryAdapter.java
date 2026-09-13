@@ -6,10 +6,10 @@ import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.stereotype.Component;
 
 import com.ecommerce.inventory_service.application.exception.StockUpdateConflictException;
-import com.ecommerce.inventory_service.application.port.RepositoryPort;
+import com.ecommerce.inventory_service.application.port.ProductRepositoryPort;
 import com.ecommerce.inventory_service.domain.entity.Product;
-import com.ecommerce.inventory_service.infrastructure.repository.JpaProductInterface;
 import com.ecommerce.inventory_service.infrastructure.repository.dto.ProductDto;
+import com.ecommerce.inventory_service.infrastructure.repository.jpaRepositories.JpaProductInterface;
 
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
@@ -18,7 +18,7 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 @Slf4j
 @Component
-public class RepositoryAdapter implements RepositoryPort {
+public class ProductRepositoryAdapter implements ProductRepositoryPort {
 
     private final JpaProductInterface productRepo; 
 

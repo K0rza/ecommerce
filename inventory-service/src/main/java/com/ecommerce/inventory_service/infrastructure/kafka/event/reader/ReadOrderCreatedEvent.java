@@ -8,8 +8,10 @@ import com.ecommerce.inventory_service.application.usecases.OrderCreatedUseCase;
 import com.ecommerce.inventory_service.domain.value.OrderRecord;
 import tools.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @RequiredArgsConstructor
+@Slf4j 
 @Component
 public class ReadOrderCreatedEvent {
 
@@ -22,7 +24,7 @@ public class ReadOrderCreatedEvent {
             OrderRecord orderEvent = mapper.readValue(record.value(), OrderRecord.class);
             useCase.process(orderEvent);
         } catch (Exception e) {
-            System.err.print(e);
+            log.error("Cannot map record to OrderRecord", e);
         }        
     }
 }

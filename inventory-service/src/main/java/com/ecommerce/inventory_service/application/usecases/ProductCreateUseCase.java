@@ -1,13 +1,13 @@
 package com.ecommerce.inventory_service.application.usecases;
 
-import com.ecommerce.inventory_service.application.port.RepositoryPort;
+import com.ecommerce.inventory_service.application.port.ProductRepositoryPort;
 import com.ecommerce.inventory_service.domain.entity.Product;
 
 public class ProductCreateUseCase {
 
-    private RepositoryPort repo;
+    private ProductRepositoryPort repo;
 
-    public ProductCreateUseCase(RepositoryPort repo) {
+    public ProductCreateUseCase(ProductRepositoryPort repo) {
         this.repo = repo;
     }
 

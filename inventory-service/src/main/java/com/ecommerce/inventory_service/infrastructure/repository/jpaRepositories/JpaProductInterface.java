@@ -1,4 +1,4 @@
-package com.ecommerce.inventory_service.infrastructure.repository;
+package com.ecommerce.inventory_service.infrastructure.repository.jpaRepositories;
 
 import java.util.Optional;
 
