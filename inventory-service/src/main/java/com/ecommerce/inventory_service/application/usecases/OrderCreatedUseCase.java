@@ -1,16 +1,15 @@
 package com.ecommerce.inventory_service.application.usecases;
 
 import com.ecommerce.inventory_service.application.exception.IllegalOrderCreateEventIdempotent;
-import com.ecommerce.inventory_service.application.exception.StockUpdateConflictException;
-import com.ecommerce.inventory_service.application.port.OrderRepositoryPort;
-import com.ecommerce.inventory_service.application.port.OrderStatusPublisherPort;
-import com.ecommerce.inventory_service.application.port.ProductRepositoryPort;
+import com.ecommerce.inventory_service.application.port.in.ProcessOrderUseCase;
+import com.ecommerce.inventory_service.application.port.out.OrderRepositoryPort;
+import com.ecommerce.inventory_service.application.port.out.OrderStatusPublisherPort;
+import com.ecommerce.inventory_service.application.port.out.ProductRepositoryPort;
 import com.ecommerce.inventory_service.domain.entity.Inventory;
 import com.ecommerce.inventory_service.domain.exception.OutOfStockException;
 import com.ecommerce.inventory_service.domain.value.OrderRecord;
 
-public class OrderCreatedUseCase {
-    private static final int MAX_ATTEMPTS = 3;
+public class OrderCreatedUseCase implements ProcessOrderUseCase {
 
     private final ProductRepositoryPort productRepositoryPort;
     private final OrderRepositoryPort orderRepositoryPort;
@@ -22,6 +21,7 @@ public class OrderCreatedUseCase {
         this.publisher = publisher;
     }
 
+    @Override
     public void process(OrderRecord orderRecord) {
         orderRepositoryPort.ifNewOrderOrElse(
             orderRecord.eventId(),
@@ -35,25 +35,18 @@ public class OrderCreatedUseCase {
 
     private void processOrderCreateJob(OrderRecord orderEvent) {
         try {
-            for (int attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
-                try {
-                    int stock = productRepositoryPort.getStock(orderEvent.productId());
+            int stock = productRepositoryPort.getStock(orderEvent.productId());
 
-                    Inventory inventory = Inventory.of(orderEvent, stock);
+            Inventory inventory = Inventory.of(orderEvent, stock);
 
-                    inventory.decreaseStock();
+            inventory.decreaseStock();
 
-                    productRepositoryPort.updateStock(inventory.getProductId(), inventory.getStock());
-                    
-                    orderRepositoryPort.eventConsumed(orderEvent.eventId());
+            productRepositoryPort.updateStock(inventory.getProductId(), inventory.getStock());
+            
+            orderRepositoryPort.eventConsumed(orderEvent.eventId());
 
-                    publisher.publisCreatedSuccessfulyEvent(inventory);
-
-                    return;
-                } catch (StockUpdateConflictException e) {
-                    if (attempt == MAX_ATTEMPTS) throw e;
-                }
-            }
+            publisher.publisCreatedSuccessfulyEvent(inventory);
+             
         } catch (OutOfStockException e) {
             publisher.orderOutOfStock(e.getOrderId());
         }

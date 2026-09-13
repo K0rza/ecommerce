@@ -175,10 +175,12 @@ Her iki yol da `order-service/request.http` üzerinden elle test edilerek doğru
 
 ## 5. Yol haritası
 
+> **2026-09-13 kullanıcı kararı:** Şu an Hexagonal Architecture ve Maven ile devam ediliyor. Domain/application framework bağımsız kalacak; bu katmanlara `@Transactional` önerilmeyecek. Güncel ders inventory için giriş portu ve transactional decorator; ardından atomik idempotency, retry sınırı ve sonuç outbox'ı. Aşağıdaki eski faz/durum kayıtları kendiliğinden güncel sayılmamalı. Güncel öğrenme sırası ve kararlılık eşiği `MENTORSHIP.md` bölüm 0'da.
+
 ### Faz 1 — Zemin temizliği (sıradaki iş)
 
 1. Lombok sürümünü `1.18.46` olarak ez (inventory-service, product-service); product-service için açık annotation processor yapılandırmasını da ekle → beş servisin de komut satırından derlenmesini sağla. İlk mentorluk adımı inventory değişikliğini kullanıcının uygulaması; henüz tamamlanmadı.
-2. Adapter paketlerini tek şemaya oturt (bulgu 8)
+2. **Tüm projede `application.port.in` / `application.port.out` standardizasyonu** (2026-09-13 kullanıcı talebi): önce yönün application'a göre belirlendiğini öğret; inventory → order → product → gateway sırasıyla mevcut portları ve giriş sözleşmelerini değerlendir. Servis başına paket/import/wiring ve derlemeyi kontrol et. JPA/Feign gibi framework arayüzlerini infrastructure'da tut; discovery için gereksiz port üretme. ProductEventPublisher içindeki OutboxEventEntity bağımlılığını ayrıca ayır. Port envanteri `MENTORSHIP.md` bölüm 0'da. Adapter paketlerinin ortak şeması da bu sorumluluk ayrımına göre ele alınacak (bulgu 8). Henüz tamamlanmadı.
 3. Bean factory'leri `@Configuration` yap (bulgu 9)
 4. Bulgu 7'ye karar ver: `StockUpdateConflictException` hangi katmana ait?
 
@@ -203,9 +205,9 @@ Her iki yol da `order-service/request.http` üzerinden elle test edilerek doğru
 
 ### Faz 4 — Baştan beri planlanan konular
 
-16. **Maven → Gradle geçişi** (kişisel öğrenme hedefi)
-17. **Gradle convention plugin:** yeni servisleri doğrudan hedef mimaride iskeletleyen bir eklenti (Faz 2'deki starter modülü bunun Maven'daki ön provası)
-18. **Hexagonal → Clean Architecture değerlendirmesi:** "hexagonal ile yazdık ama clean architecture daha uygun olurdu" fikrinin somut yapısal farklarla masaya yatırılması — bu soru hâlâ açık
+16. **Hexagonal → Clean Architecture geçişi:** ürün/sipariş akışları, idempotency, rollback, kesinti sonrası kurtarma ve tekrarlanabilir doğrulamalarla kararlılık değerlendirildikten sonra yapılacak. Somut yapısal değişiklikler önce belirlenecek; yalnızca paket adlarını değiştirmek geçiş sayılmayacak.
+17. **Maven → Gradle geçişi:** kararlılık eşiğinden sonra, mimari geçişten ayrı bir aşamada ve mevcut davranış kontrolleri korunarak yapılacak (kişisel öğrenme hedefi).
+18. **Gradle convention plugin:** Gradle geçişinden sonra yeni servislerin ortak derleme ve mimari kurallarını standardize etmek için ele alınacak.
 19. **Gerçek JWT/OAuth2 kimlik doğrulama** (gateway'deki mock kontrolün yerine)
 20. Resilience4j'nin daha derin kullanımı (bulkhead, rate limiter, retry politikaları)
 21. Şema yönetimi için Flyway/Liquibase — `ddl-auto: validate` + versiyonlanmış migration script'leri

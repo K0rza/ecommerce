@@ -1,8 +1,44 @@
 # E-commerce — Yazılım Mimarisi Mentorluğu
 
-Son güncelleme: 2026-09-12
-Devir sürümü: 2
-Durum: Kullanıcının “başlayabiliriz” talebiyle Faz 1 başladı; derleme hataları yeniden üretildi, ilk uygulama adımı bekliyor.
+Son güncelleme: 2026-09-13
+Devir sürümü: 4
+Durum: Hexagonal mimaride inventory idempotency ve transaction sınırı üzerinde adım adım çalışılıyor. Aşağıdaki güncel kararlar, eski durum bölümlerinin önüne geçer.
+
+## 0. Güncel mimari ve müfredat kararı — 2026-09-13
+
+- Şimdilik **Hexagonal Architecture (Ports & Adapters) ve Maven** ile devam edilecek. Clean Architecture geçişi henüz başlamadı. Giriş portu veya decorator eklemek bu geçişin başladığı anlamına gelmez.
+- Domain/application framework bağımsız kalacak. Bu katmanlara Spring/JPA/Kafka bağımlılığı veya `@Transactional` eklemek çözüm olarak önerilmeyecek. İş akışı application'da, iş kuralları domain'de; transaction mekanizması infrastructure'da tutulacak.
+- Güncel konu: `OrderCreatedUseCase` iş akışını taşımadan dışarıdan transaction ile sarmalamak. Kullanıcı `ProcessOrderUseCase` arayüzünü `application.port.in` konumuna taşıdı; use case'in import ve implements bağlantısı koddan doğrulandı. Decorator henüz bağlanmadı.
+- Bir seferde küçük, açık bir uygulama adımı verilecek; kullanıcı uygulayacak, asistan diff/kod üzerinden review yapacak. Transaction decorator'ını mevcut retry döngüsü ve doğrudan Kafka yayınıyla nihai çözüm diye sunma: her retry ayrı transaction'da olmalı, sonuç olayları inventory outbox'a yazılmalı.
+- Öğrenme sırası: (1) tüm proje için giriş/çıkış portlarını anlamlandırma ve servis servis `application.port.in/out` standardizasyonu; inventory giriş portu/decorator/bean bağlantısı ve transaction kapsamı, (2) atomik event işleme kaydı, retry sınırı ve inventory sonuç outbox'ı, (3) duplicate, eşzamanlı tüketim, rollback, kesinti sonrası kurtarma, başarı ve yetersiz stok deneyleri, (4) bu akışları izleyebilmek için AOP/observability ve tekrarlanabilir doğrulamalar.
+- **Kararlılık eşiği önerisi:** temel ürün/sipariş akışları, tekrar teslimat, başarısızlıkta atomiklik ve sonuç olaylarının kurtarılması tekrarlanabilir kontrollerle doğrulanmış; ortam/şema kurulumu tekrarlanabilir; mimari bağımlılık yönü korunmuş olmalı. Bunlar henüz tamamlanmış sayılmıyor.
+- Bu eşik birlikte değerlendirildikten sonra **Hexagonal → Clean Architecture geçişi** ve **Maven → Gradle geçişi** ayrı aşamalarda, her birinde aynı davranış kontrolleri korunarak yapılacak. Sonrasında Gradle convention plugin ele alınacak. REST, Spring Data, Security, gRPC ve ileri dayanıklılık hedefleri devam ediyor.
+- Kullanıcı rutin dosya/oturum özeti yönetimini kendisi üstlendi. Her yanıtta dosya oluşturma veya otomatik özet güncelleme yapma. Bu güncelleme, kullanıcının açık “notlarına ekle ve müfredatı ona göre belirle” talebiyle yapıldı.
+- Aşağıdaki 4 ve 5. bölümler 2026-09-12 tarihli eski derleme/devir notlarıdır; güncel ilerleme olarak kullanılmamalı. Sonraki konuşmalarda Java 25 / Boot 4 geçişi, ürün ortak transaction'ı ve manuel ürün/sipariş deneyleri ilerledi. Güncel teknik durumu ilgili kod ve yeni doğrulamalarla kontrol et.
+
+### Tüm proje için port paketleme kararı — 2026-09-13
+
+Kullanıcı `port.in` / `port.out` ayrımının açıklanmasını ve tüm projeye adım adım uygulanmasını istedi. Bu bir Hexagonal paketleme standardıdır; Clean Architecture veya Gradle migration değildir. Paket isimleri mimarinin zorunlu kuralı değildir; esas kural bağımlılık yönü ve sorumluluklardır.
+
+- `application.port.in`: dış aktörlerin application'dan istediği işlemlerin sözleşmeleri. Incoming adapter çağırır; application use case uygular. Transaction decorator aynı giriş portunu uygulayarak çağrıyı sarabilir.
+- `application.port.out`: application'ın kalıcı kayıt, dış sistem veya yayınlama için ihtiyaç duyduğu sözleşmeler. Use case çağırır; infrastructure adapter uygular.
+- Her iki port grubunun sahibi application'dır. Yön, application'a göre çağrının başlatılma yönüdür; metodun veri döndürmesi, Kafka'dan gelmesi veya isminde `Create` bulunması yönü belirlemez.
+- JPA repository, Feign client, DTO ve adapter sınıfları sırf interface/sınıf oldukları için application port paketlerine taşınmayacak; framework bağımlılıkları infrastructure'da kalacak. Spring wiring/import/bean referansları servis başına birlikte kontrol edilecek.
+
+Mevcut portların hedefleri (henüz topluca taşınmadı):
+
+| Servis | Port | Hedef |
+|---|---|---|
+| inventory | ProcessOrderUseCase | application.port.in — taşındı |
+| inventory | ProductRepositoryPort, OrderRepositoryPort, OrderStatusPublisherPort | application.port.out |
+| product | ProductRepository, ProductEventPublisher, ProductCreationPort | application.port.out |
+| order | OrderCreationPort, OrderStatusUpdatePort, OrderCreatedEventPublisher, Logger | application.port.out; Logger'ın sonradan kaldırılması ayrı konu |
+| api-gateway | Şu an ayrı application port arayüzü yok | Authentication giriş sözleşmesini kendi adımında incele |
+| discovery | Şu an application portu yok | Sırf simetri için boş port veya paket üretme |
+
+Sıra: inventory örneğiyle ayrımı öğret ve mevcut çıkış portlarını taşı; sonra order, product ve gateway sınırlarını incele. Mevcut doğrudan use case çağrılarını giriş sözleşmelerine bağlama kararını servis adımında ver; her sınıf için mekanik olarak interface üretme. Her servis için paket bildirimi, import ve wiring kontrolünden sonra uygun derlemeyi yap; iş akışlarını paket taşıma bahanesiyle değiştirme.
+
+Kod incelemesinde `product-service/application/port/ProductEventPublisher` içinde infrastructure'a ait `OutboxEventEntity` dönüş tipi bulundu. Product adımında publisher sözleşmesini scheduler'ın outbox tarama/işaretleme ihtiyaçlarından ayır; yalnızca paketi taşıyarak bağımlılık ihlalini çözülmüş sayma.
 
 ## 1. Amaç ve geliştirici profili
 

@@ -4,7 +4,7 @@ import java.util.function.IntConsumer;
 
 import org.springframework.stereotype.Component;
 
-import com.ecommerce.inventory_service.application.port.OrderRepositoryPort;
+import com.ecommerce.inventory_service.application.port.out.OrderRepositoryPort;
 import com.ecommerce.inventory_service.infrastructure.repository.dto.OrderDto;
 import com.ecommerce.inventory_service.infrastructure.repository.jpaRepositories.JpaOrderInterface;
 
