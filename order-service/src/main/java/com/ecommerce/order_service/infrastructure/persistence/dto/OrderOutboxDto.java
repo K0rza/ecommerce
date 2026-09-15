@@ -15,7 +15,7 @@ import jakarta.persistence.Table;
 public class OrderOutboxDto {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.SEQUENCE)
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private int eventId;
     private int orderId;
     private int productId;

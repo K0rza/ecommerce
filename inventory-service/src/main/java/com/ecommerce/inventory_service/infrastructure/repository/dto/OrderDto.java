@@ -7,7 +7,7 @@ import lombok.NoArgsConstructor;
 
 @Entity  
 @NoArgsConstructor 
-@Table(name = "order")
+@Table(name = "processed_order_event")
 public class OrderDto {
 
     @Id
