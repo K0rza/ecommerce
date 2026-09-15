@@ -1,158 +1,129 @@
 # E-commerce — Yazılım Mimarisi Mentorluğu
 
-Son güncelleme: 2026-09-13
-Devir sürümü: 4
-Durum: Hexagonal mimaride inventory idempotency ve transaction sınırı üzerinde adım adım çalışılıyor. Aşağıdaki güncel kararlar, eski durum bölümlerinin önüne geçer.
+Son güncelleme: 2026-09-15 (akşam)
+Devir sürümü: 6
+Aktif konu: inventory servisinde ortak transaction sonrasında atomik event kaydı ve idempotency (ROADMAP Faz 0).
+Bu belge çalışma anlaşması ve öğrenme hafızasıdır. Uygulama sırası, hedef servisler ve endpoint hedefleri [ROADMAP.md](ROADMAP.md), tarihsel mimari bağlam [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md) içindedir.
 
-## 0. Güncel mimari ve müfredat kararı — 2026-09-13
+**Kapsam kararı (2026-09-15, kullanıcı talebi):** program yalnızca mevcut üç servisi olgunlaştırmakla sınırlı değil. Gerçekçi bir e-ticaret backend'i hedefleniyor: payment, notification, cart, shipping servisleri ve kimlik altyapısı eklenecek; RabbitMQ, gRPC, Redis, rate limiting, gerçek OIDC ve Kubernetes programın parçası. Hedef mimari, servis sınırı gerekçeleri, teknoloji yerleşimi ve hedef API yüzeyi ROADMAP.md sürüm 2'de. Kullanıcının açık isteği: "projede var" kaydı yeterli değil; aradan zaman geçtikten sonra kodu kopyalamadan yeniden kurabilmek ve bedelini savunabilmek esas. Bu yüzden aralıklı hatırlama ve geçmiş konulara dönüş bu programın zorunlu parçasıdır, isteğe bağlı eklentisi değil.
 
-- Şimdilik **Hexagonal Architecture (Ports & Adapters) ve Maven** ile devam edilecek. Clean Architecture geçişi henüz başlamadı. Giriş portu veya decorator eklemek bu geçişin başladığı anlamına gelmez.
-- Domain/application framework bağımsız kalacak. Bu katmanlara Spring/JPA/Kafka bağımlılığı veya `@Transactional` eklemek çözüm olarak önerilmeyecek. İş akışı application'da, iş kuralları domain'de; transaction mekanizması infrastructure'da tutulacak.
-- Güncel konu: `OrderCreatedUseCase` iş akışını taşımadan dışarıdan transaction ile sarmalamak. Kullanıcı `ProcessOrderUseCase` arayüzünü `application.port.in` konumuna taşıdı; use case'in import ve implements bağlantısı koddan doğrulandı. Decorator henüz bağlanmadı.
-- Bir seferde küçük, açık bir uygulama adımı verilecek; kullanıcı uygulayacak, asistan diff/kod üzerinden review yapacak. Transaction decorator'ını mevcut retry döngüsü ve doğrudan Kafka yayınıyla nihai çözüm diye sunma: her retry ayrı transaction'da olmalı, sonuç olayları inventory outbox'a yazılmalı.
-- Öğrenme sırası: (1) tüm proje için giriş/çıkış portlarını anlamlandırma ve servis servis `application.port.in/out` standardizasyonu; inventory giriş portu/decorator/bean bağlantısı ve transaction kapsamı, (2) atomik event işleme kaydı, retry sınırı ve inventory sonuç outbox'ı, (3) duplicate, eşzamanlı tüketim, rollback, kesinti sonrası kurtarma, başarı ve yetersiz stok deneyleri, (4) bu akışları izleyebilmek için AOP/observability ve tekrarlanabilir doğrulamalar.
-- **Kararlılık eşiği önerisi:** temel ürün/sipariş akışları, tekrar teslimat, başarısızlıkta atomiklik ve sonuç olaylarının kurtarılması tekrarlanabilir kontrollerle doğrulanmış; ortam/şema kurulumu tekrarlanabilir; mimari bağımlılık yönü korunmuş olmalı. Bunlar henüz tamamlanmış sayılmıyor.
-- Bu eşik birlikte değerlendirildikten sonra **Hexagonal → Clean Architecture geçişi** ve **Maven → Gradle geçişi** ayrı aşamalarda, her birinde aynı davranış kontrolleri korunarak yapılacak. Sonrasında Gradle convention plugin ele alınacak. REST, Spring Data, Security, gRPC ve ileri dayanıklılık hedefleri devam ediyor.
-- Kullanıcı rutin dosya/oturum özeti yönetimini kendisi üstlendi. Her yanıtta dosya oluşturma veya otomatik özet güncelleme yapma. Bu güncelleme, kullanıcının açık “notlarına ekle ve müfredatı ona göre belirle” talebiyle yapıldı.
-- Aşağıdaki 4 ve 5. bölümler 2026-09-12 tarihli eski derleme/devir notlarıdır; güncel ilerleme olarak kullanılmamalı. Sonraki konuşmalarda Java 25 / Boot 4 geçişi, ürün ortak transaction'ı ve manuel ürün/sipariş deneyleri ilerledi. Güncel teknik durumu ilgili kod ve yeni doğrulamalarla kontrol et.
+## 1. Hedef ve çalışma anlaşması
 
-### Tüm proje için port paketleme kararı — 2026-09-13
+Enes, beş yıllık core Java geliştiricisi. Hedef, gerçekçi bir e-ticaret backend'i geliştirirken senior Java backend görüşmelerinde kendi kararlarını, uygulamalarını ve arıza deneyimlerini açıklayabilecek yetkinlik kazanmaktır. Çalışan ürün, domain bilgisi ve mühendislik öğrenimi birlikte ilerler. Bir framework'ün projede bulunması veya tek bir başarılı istek, o konuda uzmanlaşma kanıtı değildir.
 
-Kullanıcı `port.in` / `port.out` ayrımının açıklanmasını ve tüm projeye adım adım uygulanmasını istedi. Bu bir Hexagonal paketleme standardıdır; Clean Architecture veya Gradle migration değildir. Paket isimleri mimarinin zorunlu kuralı değildir; esas kural bağımlılık yönü ve sorumluluklardır.
+- Türkçe, somut dosya/metot ve beklenen davranış üzerinden anlat. Java temellerini gereksiz tekrar etme.
+- Kullanıcı kodlar; mentor problemin nedenini öğretir, küçük görev verir ve kodu inceler. Kullanıcı doğrudan uygulama istediğinde mentor uygular. Bu belge güncellemesi uygulama kodunu topluca değiştirme yetkisi değildir.
+- Bir seferde tek öğrenme amacı ve çalışabilir bir değişiklik bütünü seç. Birbirine bağlı port/adapter/use case değişikliklerini gereksiz yere tek satırlık turlara bölme.
+- Önce düşünme ve tasarım fırsatı ver; zorlanırsa ipucu, ardından küçük örnek göster. Hazır kodu kopyalamayı öğrenme sayma.
+- Kullanıcının sorusunu bitirmeden komşu konuya geçme. Outbox, ortak yerel DB transaction'ının ön koşulu değildir; DB–broker tutarlılığını ayrıca çözer.
+- Kullanıcı tekrar tekrar manuel test yapmak istemiyor. Her değişiklikten sonra aynı SQL/HTTP kontrollerini isteme. Bir öğrenme amacı için gerekli tek odaklı deneyden sonra ilerle; kritik davranışlar olgunlaştığında az sayıda anlamlı otomatik kontrol oluştur.
+- Kullanıcı geçmiş konulardan sorularla sınanmayı açıkça istiyor. Kısa, aralıklı hatırlama ve yeni senaryoya uygulama çalışmaları yap; art arda soru yağmuruna dönüştürme.
+- Yeni soru, düzeltme veya model değişikliği aktif konuyu sıfırlamaz.
+- Rutin oturum dosyaları/özetleri otomatik oluşturma. Kullanıcı doküman yönetimini kendisi üstlendi. Bu sürüm, açık kapsam ve müfredat güncelleme talebiyle yazıldı; sonraki kayıtları kullanıcı istediğinde güncelle.
 
-- `application.port.in`: dış aktörlerin application'dan istediği işlemlerin sözleşmeleri. Incoming adapter çağırır; application use case uygular. Transaction decorator aynı giriş portunu uygulayarak çağrıyı sarabilir.
-- `application.port.out`: application'ın kalıcı kayıt, dış sistem veya yayınlama için ihtiyaç duyduğu sözleşmeler. Use case çağırır; infrastructure adapter uygular.
-- Her iki port grubunun sahibi application'dır. Yön, application'a göre çağrının başlatılma yönüdür; metodun veri döndürmesi, Kafka'dan gelmesi veya isminde `Create` bulunması yönü belirlemez.
-- JPA repository, Feign client, DTO ve adapter sınıfları sırf interface/sınıf oldukları için application port paketlerine taşınmayacak; framework bağımlılıkları infrastructure'da kalacak. Spring wiring/import/bean referansları servis başına birlikte kontrol edilecek.
+## 2. Mimari ve teknoloji kararları
 
-Mevcut portların hedefleri (henüz topluca taşınmadı):
+1. Şimdi **Hexagonal Architecture ve Maven**, bütün servislerde **JDK 25**. Java 21'e geri dönüş önerme.
+2. Domain/application framework bağımsızdır. Spring, JPA, Kafka, RabbitMQ ve gRPC generated sınıfları infrastructure sınırındadır. Domain/application'a `@Transactional` veya Spring bağımlılığı eklemeyi çözüm olarak önerme.
+3. İş kuralları domain'de, iş akışı application'da, teknoloji ve transaction mekanizması infrastructure'da kalır. Decorator, use case'i çağırır; repository iş akışını kendi içine kopyalamaz.
+4. Tüm projede `application.port.in` ve `application.port.out` kullanılacak. In: application'ın sunduğu işlem; out: application'ın dışarıdan ihtiyaç duyduğu yetenek. İki sözleşmenin sahibi de application'dır. JPA/Feign arayüzleri application portu değildir.
+5. **Hexagonal → Clean Architecture geçişi programın açık bir aşamasıdır.** İlk kararlı sipariş/stok dilimi sonrası, ROADMAP Faz 3'te önce bir servis üzerinde yapılır. Paket adı değiştirmek geçiş sayılmaz. İçeriye yönelen bağımlılıklar, use case giriş/çıkış modelleri, interface adapter ve composition root sınırları görünür hâle getirilir.
+6. Hexagonal ile Clean birbirinin rakibi veya alt/üst sürümü değildir. Ortak ilkeleri ve vurgu farklarını karşılaştır; mevcut doğru port/decorator tasarımı korunabilir. [Cockburn](https://alistair.cockburn.us/hexagonal-architecture), [Clean Architecture](https://blog.cleancoder.com/uncle-bob/2012/08/13/the-clean-architecture.html)
+7. **Maven → Gradle**, mimari geçişten ayrı Faz 4'tür. JDK 25 ve framework sürümlerini sabit tutarak Kotlin DSL, wrapper/toolchain, dependency scopes, BOM, annotation processors, bootJar ve CI eşdeğerliğini öğret. Sonra version catalog ve convention plugin.
+8. Eureka bugün kullanılıyor. Kubernetes aşamasında uygulamaları container/Deployment/Service olarak dağıtıp keşfi Service/DNS'e taşırız. Kubernetes business transaction veya idempotency çözümü değildir.
+9. REST bir mimari stil, gRPC bir RPC yaklaşımı, Kafka ve RabbitMQ mesajlaşma platformlarıdır. Aynı sınıfta “protokoller” diye ezberletme. Her biri için kullanım nedeni, sözleşme ve hata davranışı öğretilecek.
+10. Her yeni özellik ayrı mikroservis olmak zorunda değildir. Bounded context, veri sahipliği, bağımsız yaşam döngüsü ve operasyon maliyetiyle servis sınırını gerekçelendir.
 
-| Servis | Port | Hedef |
+## 3. Öğretim döngüsü ve hatırlama
+
+Her odaklı çalışma şu sırayı izler:
+
+1. Müşteri veya işletme problemi: örneğin ödeme yanıtı gelmediği hâlde para çekilmiş olabilir.
+2. Kullanıcının kısa tahmini/tasarımı: mevcut bilgisi ve belirsizliği ortaya çıkar.
+3. Mekanizma ve alternatif: neden çalışır, neyi garanti eder, maliyeti nedir?
+4. Küçük uygulama: somut dosyalar, değişikliğin amacı ve tamamlanma ölçütü.
+5. Review + gerekiyorsa tek öğretici arıza: sonuçtan mekanizmaya geri bağlan.
+6. Transfer: aynı yaklaşımı farklı servis veya senaryoda daha az yardımla uygula.
+
+**Hatırlama ritmi:** oturum başında uygun olduğunda bir eski konu sorusu; 2–3 oturum sonra aynı kavramı başka problemde kullanma; yaklaşık bir hafta sonra veya bir sonraki dönüm noktasında kodu kopyalamadan yeniden tasarlama. Bunlar otomatik takvim görevi değildir. Yanıt zayıfsa kısa bir geri dönüş dersi ver, sonra aktif işe dön.
+
+**Öğrenme düzeyleri:** 0 = henüz ele alınmadı; 1 = örnekle açıklıyor; 2 = yönlendirmeyle uyguluyor; 3 = farklı senaryoda bağımsız uyguluyor ve hata teşhis ediyor; 4 = bedelleri savunuyor ve aradan sonra tekrar kurabiliyor. Sadece sohbeti okuyarak düzey atlatma; gözlenen kanıtı belirt.
+
+**Resilience4j için özel tekrar planı:**
+- İlk geri çağırma: circuit breaker, timeout, retry ve bulkhead hangi farklı soruları cevaplar?
+- Mevcut stock çağrısını çalışır hâle getir; fallback'in servis arızasını “stok 0” diye sunmasını düzelt.
+- CLOSED/OPEN/HALF_OPEN, pencere/minimum çağrı, slow-call/failure eşikleri ve ölçümleri kullanıcıyla yorumla.
+- Ödeme veya kargo adapter'ında aynı politikayı sonradan yeniden kurdur; ödeme tekrarının idempotency ihtiyacını açıklat.
+- Gerekirse bir ipucuyla başla; anotasyon veya YAML ezberini hedefleme.
+
+**Senior görüşme provası:** dönüm noktalarında 10–15 dakikalık tasarım/arıza değerlendirmesi. Örnek: “Son stok için iki müşteri yarışıyor”, “ödeme webhook'u iptalden sonra geldi”, “DB havuzu dolarken virtual thread sayısını artırdın”, “consumer lag büyüyor”. Kullanıcı gerekçe ve kanıt sunsun; mentor net geri bildirim ve tek sonraki gelişim hedefi versin. Unvan veya mülakat başarısı garanti edilmez; gerçek yetkinlik kanıtları birikir.
+
+## 4. Yetkinlik matrisi
+
+| Alan | Projedeki çalışma | Öğrenciden beklenecek kanıt |
 |---|---|---|
-| inventory | ProcessOrderUseCase | application.port.in — taşındı |
-| inventory | ProductRepositoryPort, OrderRepositoryPort, OrderStatusPublisherPort | application.port.out |
-| product | ProductRepository, ProductEventPublisher, ProductCreationPort | application.port.out |
-| order | OrderCreationPort, OrderStatusUpdatePort, OrderCreatedEventPublisher, Logger | application.port.out; Logger'ın sonradan kaldırılması ayrı konu |
-| api-gateway | Şu an ayrı application port arayüzü yok | Authentication giriş sözleşmesini kendi adımında incele |
-| discovery | Şu an application portu yok | Sırf simetri için boş port veya paket üretme |
+| E-ticaret / DDD | SKU/katalog, Money, sepet, sipariş satırları ve snapshot, stok rezervasyonu, ödeme, kargo/iade | Veri sahibi ve invariant belirler; sipariş toplamını güvenilir kaynaktan üretir; geçersiz durum geçişini engeller |
+| Hexagonal → Clean | Port/adapter, decorator, composition root, request/response modelleri; bir servis üzerinde dönüşüm | Bağımlılık oklarını çizer; iş akışını infrastructure'a taşımadan teknoloji değiştirir |
+| Spring Core / Boot | IoC, bean scope/lifecycle, configuration, proxy/self-invocation, auto-configuration/conditions, profiles/config binding, starter, Actuator | “Bu bean neden oluştu/oluşmadı?” sorusunu condition report ve wiring üzerinden çözer |
+| Transaction / PostgreSQL | REQUIRED/REQUIRES_NEW, rollback-only, isolation, lost update, deadlock, uniqueness, pool sınırları | Flush ile commit'i ayırır; atomiklik ile isolation farkını aynı senaryoda gösterir |
+| JPA / Hibernate | Entity lifecycle, persist/merge, dirty checking, ilişkiler/ownership, cascade/orphan removal, fetch plan, N+1, batch, projection, pagination | Üretilen SQL'i tahmin eder; sorgu sayısı ve EXPLAIN ile fetch/index tercihini savunur |
+| REST | Kaynak modeli, DTO/validation, HTTP durumları/Location/Problem Details, pagination, idempotent checkout, OpenAPI, optimistic concurrency/ETag | Yanıt sözleşmesi tasarlar; istemci retry'sının etkisini açıklar; async siparişi GET ile takip ettirir |
+| Security / gateway | OIDC sağlayıcı + Spring Security, JWT doğrulama, sahiplik/rol, tüm public route'lar, limit ve timeouts | 401/403 ayrımını ve kullanıcının başka siparişi okumasını engelleyen kontrolü uygular |
+| Resilience4j | Timeout bütçesi, retry/backoff/jitter, CB, bulkhead ve rate limiting | Bir bağımlılık arızasında durum geçişini ölçer; retry çoğalmasını ve yanlış fallback'i önler |
+| Kafka | Key/partition/order, groups/rebalance, offset/ack, retries/DLT, producer acks/idempotence, retention/replay, schema evolution | DB commit–offset aralığını açıklar; replay sırasında dış yan etkiyi tekrar üretmez |
+| EDA / dağıtık tutarlılık | Domain/integration event, inbox/idempotency, polling outbox, saga choreography/orchestration, compensation, timeout/reconciliation | İş reddi ile teknik arızayı ayırır; geç/çift/sırası değişmiş event'e rağmen durum modelini korur |
+| RabbitMQ | Notification iş kuyruğu, exchange/routing, prefetch, manual ack, confirms, retry/DLX/quorum | Broker confirm ile consumer ack'i ayırır; requeue döngüsünü teşhis eder |
+| gRPC | İç servis toplu katalog/fiyat sorgusu, protobuf/stub, metadata, status, deadline/cancellation, sürüm uyumu | Aynı application portuna REST ve gRPC adapter'larını bağlar; timeout bütçesini taşır |
+| Redis / okuma modelleri | Katalog cache-aside, TTL/invalidation/stampede; sipariş zaman çizelgesi için CQRS projection | Bayat veri bedelini ve kaynak gerçeği açıklar; projection'ı yeniden kurar |
+| İleri EDA | Polling–CDC/Debezium karşılaştırması; sınırlı event sourcing laboratuvarı | Outbox tablosu ile event store farkını, ordering/rebuild/schema maliyetini açıklar |
+| Java / JVM | Executors/CompletableFuture, concurrency, virtual threads, thread-local bağlam, heap/GC, JFR/thread dump | DB pool/CPU/lock darboğazını ayırır; daha çok thread'in neden her zaman çözüm olmadığını gösterir |
+| Build / teslimat | Maven lifecycle/BOM → Gradle Kotlin DSL/toolchain/conventions; CI ve uygulama image'ları | Build'i yeniden üretir; bağımlılık çatışmasını ve annotation processor problemini teşhis eder |
+| Operasyon | Metrics/logs/tracing, SLI/SLO, Kafka/outbox lag, Kubernetes DNS/probes/rollout/HPA, config/secrets, graceful shutdown | Bir siparişi uçtan uca izler; pod kaybı veya yavaş DB için ölçümden teşhis yapar |
 
-Sıra: inventory örneğiyle ayrımı öğret ve mevcut çıkış portlarını taşı; sonra order, product ve gateway sınırlarını incele. Mevcut doğrudan use case çağrılarını giriş sözleşmelerine bağlama kararını servis adımında ver; her sınıf için mekanik olarak interface üretme. Her servis için paket bildirimi, import ve wiring kontrolünden sonra uygun derlemeyi yap; iş akışlarını paket taşıma bahanesiyle değiştirme.
+Matristeki her şey aynı anda uygulanmaz. ROADMAP sırası, her alanı ihtiyacı doğduğu müşteri senaryosuna bağlar. OpenAPI/protobuf/async event sözleşmeleri ile birkaç odaklı JUnit/Testcontainers/contract kontrolü bu çalışmaların parçasıdır; uzun test listeleri dersin yerini almaz.
 
-Kod incelemesinde `product-service/application/port/ProductEventPublisher` içinde infrastructure'a ait `OutboxEventEntity` dönüş tipi bulundu. Product adımında publisher sözleşmesini scheduler'ın outbox tarama/işaretleme ihtiyaçlarından ayır; yalnızca paketi taşıyarak bağımlılık ihlalini çözülmüş sayma.
+## 5. Güncel kod ve öğrenme kanıtı — 2026-09-15
 
-## 1. Amaç ve geliştirici profili
+- Kodda beş servis, Spring Boot 4.1.1 ve JDK 25 var; build Maven. Eski JDK 21/Lombok başlangıç engeli geçmişte kaldı. (2026-09-15'te beş `pom.xml` tek tek doğrulandı.)
+- **Dış dünyaya açık API toplam üç endpoint:** `POST /products`, `GET /products/{id}`, `POST /api/orders`. inventory-service'in hiç REST endpoint'i yok. Projenin en büyük gerçekçilik açığı budur; hedef API yüzeyi ROADMAP bölüm 4'te.
+- **Redis container ayakta ama hiçbir servis kullanmıyor** — kodda tek referans yok. Aynı şekilde Resilience4j yalnızca product-service'te tek anotasyon, paketi `infrastructure.exception` (yanlış yer), fallback arızayı "stok 0" diye sunuyor. api-gateway yalnızca product route'unu tanıyor.
+- **Migration altyapısı yok ve bu 15 Eylül akşamı iki serviste peş peşe açılış hatası üretti:** inventory'de entity'nin beklediği tablo yoktu; order'da entity SEQUENCE isterken kolon identity'di. İkisi de elle düzeltildi (`processed_order_event` tablosu açıldı, outbox entity'si `GenerationType.IDENTITY`'ye çevrildi). Flyway artık "ileride" değil, ROADMAP Faz 1 işi.
+- Inventory'de `application.port.in/out` ayrımı yapıldı. Order/product/gateway standardizasyonu henüz tamamlanmadı.
+- Inventory çağrı zinciri: listener → retry decorator → Spring transaction proxy'si → transactional decorator → `OrderCreatedUseCase`. `@Primary` ve `@Qualifier` ile ayrı bean'ler bağlandı.
+- Retry yalnızca `StockUpdateConflictException` için toplam üç deneme. Ortak transaction yaklaşımı kodda var; application framework bağımsız.
+- Kullanıcı kontrollü `ROLLBACK_TEST` hatasını ve stokun düşmediğini bildirdi. Aynı event kaydının yokluğu ayrıca doğrulanmış sayılmayacak; kullanıcı ek manuel kontroller istemedi. Bu eski deneyi yeniden isteme.
+- Geçici `ROLLBACK_TEST` bloğu güncel kodda kaldırılmış. Yeniden kaldırmasını isteme.
+- `processed_order_event` tablosu için entity mevcut. Port hâlâ `ifNewOrderOrElse` ve `eventConsumed` içeriyor. Kullanıcı `tryRegisterEvent` eklemediğini açıkça bildirdi; kod da bunu doğruluyor.
+- Order outbox `eventId` artık `GenerationType.IDENTITY` kullanıyor; eski SEQUENCE notu güncel değil. Migration altyapısı henüz yok; şema değişikliğini doğrulanmış migration olarak anlatma.
+- Product/order outbox mevcut; inventory sonucu doğrudan Kafka'ya gönderiyor. Tam dayanıklı saga/outbox akışı tamamlanmış değil.
+- Son kayıtlı inventory `clean compile` JDK 25 ile başarılı (2026-09-15). Bu belge güncellemesinde yeni servis başlatma veya test yapılmadı.
+- Kullanıcı Resilience4j'yi yeniden kuracak kadar hatırlamadığını belirtti. “Projede var” kaydı öğrenme düzeyi değildir.
+- İlk ürün/sipariş deneyleri yönlendirmeyle yapıldı. Clean, Gradle, gerçek OAuth2/OIDC, RabbitMQ, gRPC, payment, notification ve Kubernetes henüz uygulanmadı.
 
-Enes, beş yıllık core Java geliştiricisi. Bu e-commerce projesi üzerinden Spring ve dağıtık sistemler konusunda karar verebilecek, sorunları teşhis edebilecek ve çözümleri uygulayabilecek deneyim kazanmak istiyor.
+### Sıradaki somut ders
 
-Öğrenme hedefleri:
+**Atomiklik ve eşzamanlılık: aynı event'i iki işlem almaya çalışırsa ne olur?**
 
-- Spring Boot: bean yaşam döngüsü, dependency injection, auto-configuration, AOP ve proxy davranışı.
-- Veritabanı ve Spring Data/JPA: persistence context, flush/commit, transaction sınırları, isolation, locking, sorgu davranışı, performans ve migration.
-- Mikroservisler: servis sınırları, bounded context, veri sahipliği ve iletişim tercihleri.
-- REST: HTTP semantiği, validation, hata sözleşmeleri, idempotency ve API tasarımı.
-- Kafka ve event-driven architecture: partition/key, consumer group, offset, teslimat garantileri, sıralama, retry ve dead-letter akışları.
-- Dağıtık tutarlılık: Outbox, idempotent consumption, Saga ve telafi işlemleri.
-- Spring Security: authentication/authorization, OAuth2/OIDC, JWT doğrulama ve servis güvenliği.
-- gRPC: Protobuf, sözleşme evrimi, deadline, hata modeli ve REST/Kafka ile kullanım alanlarının karşılaştırılması.
-- Observability, dayanıklılık ve anlamlı testlerle hata senaryolarını doğrulama.
+Önce bir kısa soru ile mevcut transaction bilgisini geri çağır. Ardından `OrderRepositoryPort.tryRegisterEvent(int eventId)` sözleşmesini, Spring Data native `INSERT … ON CONFLICT DO NOTHING` sorgusunu, adapter'ın etkilenen satır sayısını boolean'a çevirmesini ve use case'in duplicate olduğunda dönmesini birlikte küçük bir değişiklik olarak ele al. Kayıt, transaction'ın başında alınır; başarısız işlemde geri alınır. DB unique/primary key ön koşulunu açıkla. Duplicate bir iş reddi exception'ı değildir.
 
-Bir konunun tamamlanma ölçütü: mekanizmayı açıklamak, projede uygulamak, ilgili arıza senaryosunu gözlemlemek ve çözümün sınırlarını değerlendirmek. Kullanıcı bunları göstermeden öğrenme tamamlandı varsayılmamalı.
+Bir sonraki bağlı adım: başarı ve yetersiz stok sonuçlarının kalıcılığı, inventory sonuç outbox'ı ve listener hata yönetimi. Kullanıcının ortak DB transaction sorusunu tekrar outbox ön koşuluna dönüştürme. Tek bir senaryoyu bitirince eski Resilience4j bilgisini gerçek REST çağrısına geri bağla.
 
-## 2. Mentorluk anlaşması
+### Bekleyen hatırlama soruları
 
-Asistan, deneyimli yazılım mühendisi/mimarı ve pair programmer olarak Türkçe iletişim kurar.
+- Aynı transaction iki concurrent çağrının “event yok” görmesini tek başına engeller mi?
+- Retry neden transaction proxy'sinin dışındadır; `catch` rollback-only durumunu temizler mi?
+- `save` ne zaman persist, ne zaman merge davranışına gider; flush neden commit değildir?
+- Circuit breaker OPEN iken ne olur; timeout ve bulkhead ile farkı nedir?
+- Kafka broker ack, consumer offset ve iş sonucunun kalıcılığı hangi ayrı noktaları ifade eder?
 
-1. Somut problemi ve beklenen davranışı belirle.
-2. Kullanıcının düşünmesini sağlayan az sayıda hedefli soru sor; eksik mekanizmayı açıkça anlat.
-3. Çözüm alternatiflerini ve bedellerini tartış. Mimari kuralları gerekçeleriyle değerlendir.
-4. Küçük bir uygulama adımı ver. Öğrenme sırasında kullanıcının uygulamasını review et; doğrudan kodlama talebinde uygulamayı üstlen.
-5. Gerektiğinde çift mesaj, eşzamanlı istek, servis kesintisi ve rollback gibi kontrollü deneyler yap.
-6. Kararı, doğrulanan sonucu ve sonraki adımı bu dosyaya kaydet.
+Soruların cevaplarını peşinen gösterme. O tur en fazla bir veya iki tanesini seç; yanıtına göre öğretimi ayarla.
 
-Java temellerini gereksiz yere tekrar etme. Yüzeysel pattern tanımlarıyla yetinme. Soruları sınava dönüştürme. Teknolojileri yalnızca listede oldukları için projeye ekleme. Kullanıcının açık sorularını cevapladıktan sonra mevcut hedefe dön.
+## 6. Kaynak kullanımı ve oturum devamlılığı
 
-## 3. Kaynaklar ve geçmiş
+Kaynaklar mekanizmaları doğrular; servis sınırları ve faz sırası bu proje için yaptığımız tasarım tercihleridir. Güncel sürüm gerektiren uygulama adımında resmî dokümanı yeniden kontrol et. Araştırma dayanakları ROADMAP'in kaynak bölümündedir.
 
-- Proje Gemini ile başladı; ardından Claude Code ile ilerledi, şimdi bu mentorlukla devam ediyor.
-- Gemini devir özeti: `/Users/enes/Downloads/ecommerce_proje_ozeti.md`. Çalışma metodolojisi bu dosyaya aktarıldı; yeni oturumun bu yerel yola erişmesi gerekmez.
-- `ROADMAP.md`: teknik yol haritası, önceki tamamlanan işler ve açık bulgular.
-- `PROJECT_CONTEXT.md`: tarihsel mimari kararlar ve servis sorumlulukları.
-- `AGENTS.md`: repoda çalışan yeni ajanlar için giriş yönergesi.
+Her yeni oturumda: bu belgedeki aktif konuyu, ROADMAP'in ilgili fazını ve güncel kodu oku. Yalnızca gerekli geçmişi taşı. Yapıldı / kullanıcı gözlemledi / tasarlandı / bağımsız uygulandı durumlarını birbirine karıştırma.
 
-Kaynaklar çeliştiğinde güncel kod ve doğrulama sonuçları esas alınır. Gemini özetinde Gradle tamamlanmış yazsa da repoda Maven POM dosyaları var; ROADMAP geçişi gelecekteki iş olarak listeliyor. PROJECT_CONTEXT'in bazı ilerleme bilgileri ROADMAP'in gerisinde.
+Proje Gemini ile başladı, Claude Code ile devam etti; eski notlarda yanlış veya artık geçersiz kesinlikler vardı. Bu sürüm JDK 21, bağlanmamış order-service, tamamlanmış kapsamlı saga ve zorunlu `@Configuration` gibi eski ifadelerin yerini alır. `@Component` içindeki `@Bean` yöntemleri, birbirini doğrudan çağırmıyorsa tek başına hata değildir.
 
-## 4. Teknik durumun kısa özeti
-
-ROADMAP'in bildirdiği durum; tamamı bu devir oturumunda yeniden test edilmedi:
-
-- Beş servis: product-service, inventory-service, order-service, api-gateway, discovery-service.
-- PostgreSQL, Kafka, Eureka ve gateway altyapısı mevcut.
-- Product ve order tarafında Outbox; product-created tüketiminde idempotency uygulandığı raporlanıyor.
-- Sipariş → stok → sipariş durum güncellemesi akışının başarılı ve yetersiz stok yolları elle test edilmiş olarak kayıtlı.
-- Optimistic locking ve stok güncellemesinde üç denemelik retry mevcut.
-- Inventory tarafında AOP/loglama çalışmasına başlanmış; ortak observability modülü planlanıyor.
-- Inventory ve product için JDK 25.0.4 üzerinde `sh mvnw -o compile` çalıştırıldı; ikisi de başarısız. Inventory'de Lombok başlatma hatası, product'ta annotation processing çalışmadığından eksik `log` alanları görüldü. Product'ta yalnızca komut için `-Dmaven.compiler.proc=full` verilince aynı Lombok başlatma hatası ortaya çıktı.
-- Açık konular: consumer hata yönetimi, order-created idempotency, inventory Outbox, sunucuda orderId üretimi ve diğer ROADMAP bulguları.
-
-Bu devir sırasında koddan doğrudan görülenler:
-
-- `StockUpdateConflictException` artık `application.exception` paketinde. ROADMAP'teki domain konumu bilgisi güncel değil; taşınma gerekçesi henüz kullanıcıyla değerlendirilmedi.
-- `OrderCreatedUseCase`, stok okuma ve güncellemeden sonra event yayınlıyor; çakışma için üç deneme var.
-- `ReadOrderCreatedEvent`, tüm exception'ları yakalayıp `System.err.print(e)` çağırıyor.
-- Inventory'deki `CreateApplicationBean`, `@Component` kullanıyor. Bunun mevcut koddaki etkisi bean çağrı biçimleri incelenerek tartışılmalı; tek başına anotasyon üzerinden hata varsayılmamalı.
-
-## 5. Güncel devir özeti
-
-### Yapılanlar
-
-- ROADMAP, PROJECT_CONTEXT, Gemini özeti ve sipariş/stok akışının ilgili sınıfları okundu.
-- Mentorluk yaklaşımı ve kullanıcı hedefleri bir araya getirildi.
-- Oturumlar arası devam için bu dosya ve kök AGENTS.md hazırlandı.
-- Maven 3.9.16 / JDK 25.0.4 doğrulandı. Sistemin Java kurulum listesinde yalnızca JDK 25 görünüyor.
-- Inventory/product Java hedefi 21; Boot parent 3.3.4 üzerinden Lombok 1.18.34 geliyor. Parent, java.version değerini maven.compiler.release için kullanıyor.
-- İki servisin derleme hataları yeniden üretildi; product'ta annotation processing ile sürüm uyumluluğunun ayrı sorunlar olduğu deneyle gösterildi.
-- Uygulama kodu ve POM dosyaları değiştirilmedi. Diğer üç servis yeniden derlenmedi; çalışma zamanı testi yapılmadı.
-- Dokümanlar kullanıcı tarafından `mentorship/` altına taşınmış. Kök AGENTS.md artık yok; sonraki IDE oturumlarında bu dosyaya açıkça yönlendirme gerekebilir.
-
-### Güncel öncelik
-
-Kullanıcı dosyalama adımından sonra “tamamdır başlayabiliriz” diyerek teknik çalışmaya geçilmesini istedi. Platform erişimi asistan tarafından bağımsız olarak doğrulanmadı; devam etmek için tekrar kurulum onayı istenmeyecek.
-
-İlk ders: Maven'ı çalıştıran JDK ile `--release` hedefi arasındaki fark ve Lombok'un derleme zamanı rolü.
-
-### Sıradaki adım
-
-1. Kullanıcı inventory POM'unun properties bölümüne `<lombok.version>1.18.46</lombok.version>` ekleyip inventory klasöründe `sh mvnw -o compile` çalıştırsın; sonucu birlikte incele. Bu değişiklik henüz yapılmadı ve başarılı sonuç henüz doğrulanmadı.
-2. Inventory sonucu sonrasında product tarafında sürüm ve açık annotation processor yapılandırmasını ele al. Derleme başarısını Spring Boot'un JDK 25 üzerinde çalışma zamanı uyumluluğunun kanıtı sayma; JDK/sürüm standardizasyonu ayrı karardır.
-3. Adapter paketleri, bean configuration ve exception katmanı kararlarını sırayla ele al.
-4. Yarım kalan AOP/observability çalışmasına dön; ortak starter ve tracing adımlarına geç.
-
-Transaction sınırları çalışması daha önce önerilen bir öğrenme seçeneğidir; Faz 1'in yerine geçtiği kararlaştırılmadı.
-
-## 6. ChatGPT'ye aktarım ve oturum yönetimi
-
-Önerilen ChatGPT proje adı: **E-commerce — Yazılım Mimarisi Mentorluğu**.
-
-1. ChatGPT hesabında bu adla bir proje oluştur.
-2. Bu `MENTORSHIP.md` dosyasını ve güncel `ROADMAP.md` dosyasını projenin kaynaklarına yükle.
-3. Aşağıdaki kısa talimatı proje talimatlarına ekle.
-4. Aynı hesap ve çalışma alanıyla telefondan projeyi aç; dosyaların ve proje içinde başlatılan yeni sohbetin göründüğünü kontrol et.
-5. Her odaklı çalışma için proje içinde yeni sohbet aç. İlk konu, aktarım tamamlandıktan sonra: `01 — Faz 1: JDK ve Lombok derleme zemini`.
-
-### Proje talimatı
-
-> Bu proje Enes'in uygulamalı yazılım mimarisi mentorluk çalışmasıdır. Türkçe konuş ve beş yıllık core Java deneyimini temel al. Her yeni sohbette önce MENTORSHIP.md dosyasının en güncel sürümünü oku; ilgili teknik iş için ROADMAP.md'ye başvur. Somut problem → gerekçe ve alternatifler → küçük uygulama → review ve deney → devir özeti sırasıyla ilerle. Kullanıcıyı sorularla yönlendir ama eksik mekanizmaları açıkça anlat. Doğrudan uygulama istendiğinde kodla. Kod veya çalışma ortamına erişimin yoksa bunu belirt; test yapılmış gibi konuşma. Oturum sonunda güncel devir özetini ve sonraki somut adımı üret. Yerel dosyaların otomatik eşitlendiğini varsayma.
-
-### Yeni sohbetin ilk mesajı
-
-> MENTORSHIP.md dosyasını oku. Güncel devir özetindeki sıradaki adımdan mentorluk yaklaşımımızla devam edelim. Bu oturumda tek bir somut problemi ele alalım.
-
-### Güncellik kuralı
-
-- Repo erişimi olan oturumda ana dosyayı yerinde güncelle.
-- Telefonda veya dosya yazma erişimi olmayan sohbette oturum sonunda aktarılabilir bir devir özeti üret: tarih/sürüm, konu, karar, uygulama, doğrulama, açık soru ve sonraki adım.
-- Yerel çalışmaya dönerken bu özeti ana dosyaya işle. Kodda uygulanmayan bir kararı uygulanmış olarak kaydetme.
-- Yerel dosya değişince ChatGPT projesindeki eski kaynak kopyasını güncel dosyayla değiştir. Bu akış manuel aktarımdır; otomatik senkronizasyon kurulmadı.
-- Bu dosyayı kısa bir çalışma hafızası olarak tut. Uzun ders anlatımlarını ve deney kayıtlarını gerektiğinde ayrı `sessions/` dosyalarına taşı; yeni oturumda yalnızca ilgili olanı oku.
-
-OpenAI'nin proje dokümanı, ChatGPT projelerinde sohbetlerin, dosyaların ve talimatların birlikte tutulmasını; yerel klasörlerin ise ayrı erişim düzeni olduğunu açıklar: https://learn.chatgpt.com/docs/projects
+Platformlar arası dosya aktarımını kullanıcı yönetir; yerel belgelerin telefona veya başka uygulamalara otomatik eşitlendiğini varsayma. Yeni rutin dosyalar veya otomatik oturum kayıtları oluşturma.

@@ -1,233 +1,388 @@
-# E-Ticaret Mikroservis Projesi — Durum ve Yol Haritası
+# E-Ticaret Mikroservis Projesi — Hedef Mimari ve Yol Haritası
 
-> Son güncelleme: 2026-09-12
+> Son güncelleme: 2026-09-15 (sürüm 2 — kapsam genişletildi)
 >
-> Bu dosya projenin **nerede olduğunu** ve **nereye gittiğini** anlatır.
-> Mimarinin ne olduğu (servis sorumlulukları, teknoloji seçimleri) `PROJECT_CONTEXT.md` dosyasındadır.
-> Buradaki tüm "durum" bilgileri koda bakılarak doğrulanmıştır, dokümandan kopyalanmamıştır.
+> Bu dosya projenin **nereye gittiğini** anlatır: hedef mimari, servis sınırları, API yüzeyi ve faz sırası.
+> Çalışma anlaşması ve öğretim yöntemi [MENTORSHIP.md](MENTORSHIP.md) içindedir.
+> [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md) tarihsel bağlamdır (1 Eylül), güncel sayma.
+>
+> Bu sürümdeki "mevcut durum" bilgileri 2026-09-15'te koda ve çalışan container'lara bakılarak doğrulandı.
 
 ---
 
-## 1. Projenin amacı
+## 1. Programın amacı
 
-Bu proje çalışan bir e-ticaret uygulaması üretmek için değil, **ileri düzey yazılım mimarisi pratiklerini derinlemesine öğrenmek** için yazılıyor. Hedeflenen konular:
+İki hedef aynı anda yürür:
 
-- Mikroservis mimarisi ve servis sınırları (Bounded Context)
-- Clean Architecture / Hexagonal Architecture ve katman disiplini
-- Domain-Driven Design
-- Event-Driven Architecture, Kafka
-- Outbox Pattern (dual-write problemi)
-- Saga Pattern (Choreography) ve telafi işlemleri
-- Eşzamanlılık kontrolü (optimistic locking)
-- Observability: loglama, AOP, distributed tracing
-- Dayanıklılık: retry, circuit breaker, DLQ, idempotency
+1. **Gerçekçi bir e-ticaret backend'i** — müşteri yolculuğunun (katalog → sepet → sipariş → ödeme → kargo → bildirim → iade) anlamlı bir bölümünü gerçekten çalıştıran bir sistem. Oyuncak CRUD değil; para, stok rezervasyonu, dış sağlayıcı arızası ve geç gelen webhook gibi gerçek problemleri olan bir sistem.
+2. **Senior Java backend yetkinliği** — bu sistemi kurarken alınan kararları, uygulanan mekanizmaları ve yaşanan arızaları bir görüşmede kendi deneyimi olarak anlatabilmek.
+
+Ölçüt şudur: *"projede var"* yeterli değil. Kanıt, aradan zaman geçtikten sonra **kodu kopyalamadan yeniden kurabilmek** ve **bedelini savunabilmektir**. Yetkinlik düzeyleri ve hatırlama ritmi MENTORSHIP.md bölüm 3-4'tedir.
 
 ---
 
-## 2. Şimdiye kadar tamamlananlar
+## 2. Mevcut durum — 2026-09-15 (doğrulanmış)
 
-### 2.1 Temel altyapı
+### 2.1 Servisler
 
-- Beş servis: `product-service`, `inventory-service`, `order-service`, `api-gateway`, `discovery-service`
-- Netflix Eureka ile service discovery (port 8761)
-- Her servis kendi PostgreSQL veritabanına sahip (`product_db`, `inventory_db`, `order_db`)
-- Kafka ile asenkron, publish-subscribe iletişim
-- `api-gateway` üzerinde `AuthenticationFilter` (şimdilik mock token kontrolü)
-- `product-service` üzerinde Resilience4j Circuit Breaker (`InventoryCircuitBreaker`)
+| Servis | Port | Boot / Java | Veritabanı | Dış dünyaya açık API |
+|---|---|---|---|---|
+| api-gateway | 8080 | 4.1.1 / 25 | — | yalnızca `/api/products/**` route'u |
+| discovery-service (Eureka) | 8761 | 4.1.1 / 25 | — | — |
+| product-service | 9001 | 4.1.1 / 25 | product_db | 2 endpoint |
+| inventory-service | 8081 | 4.1.1 / 25 | inventory_db | **0 endpoint** (yalnızca Kafka) |
+| order-service | 8082 | 4.1.1 / 25 | order_db | 1 endpoint |
 
-### 2.2 Product → Inventory akışı
+Sürüm kayması bitti: beş servis de Boot 4.1.1 / JDK 25. Eski Lombok/JDK derleme engeli geçmişte kaldı.
 
-- `product-service` yeni ürün yaratıldığında `PRODUCT-CREATED-EVENTS` topic'ine yayın yapar
-- Dual-write problemi **Outbox Pattern** ile çözüldü: ürün kaydı ve outbox satırı tek transaction'da yazılır, ayrı bir zamanlanmış görev Kafka'ya gönderir
-- `inventory-service` bu topic'i dinler ve **idempotent** olarak tüketir (`eventId` kontrolü ile aynı olay iki kez işlenmez)
-
-### 2.3 order-service'in inşası
-
-- **Domain katmanı:** `Order`, `OrderRequest`, `ORDER_STATUS`, invariant kontrolleri ve domain exception'ları
-- **Application katmanı:** `CreateOrderUseCase`, `OrderSuccessfullyCreatedUseCase`, `OrderOutOfStockUseCase` ve portlar
-- **Outbox:** `OrderDto` (gerçek sipariş) ve `OrderOutboxDto` (outbox satırı) tek `@Transactional` blok içinde birlikte yazılıyor (`OrderCreationAdapter`), `OutboxPublisher` saniyede bir gönderilmemiş satırları Kafka'ya basıyor
-- **Konfigürasyon:** datasource, Kafka consumer, Eureka, port 8082
-
-### 2.4 Saga (Choreography) — uçtan uca çalışıyor
+### 2.2 Bütün API yüzeyi — toplam 3 endpoint
 
 ```
-[HTTP POST /api/orders]
-        │
-        ▼
-  order-service ──(outbox)──▶ topic: order-created
-                                      │
-                                      ▼
-                             inventory-service
-                             stok kontrolü + düşüm
-                                      │
-                    ┌─────────────────┴─────────────────┐
-                    ▼                                   ▼
-      topic: order-created-successfully      topic: order-out-of-stock
-                    │                                   │
-                    └─────────────────┬─────────────────┘
-                                      ▼
-                                order-service
-                          sipariş durumu güncellenir
-                         (COMPLETED / CANCELED)
+POST /products          product-service
+GET  /products/{id}     product-service   (+ Feign ile inventory'den stok, CB arkasında)
+POST /api/orders        order-service
 ```
 
-Her iki yol da `order-service/request.http` üzerinden elle test edilerek doğrulandı.
+Bu, projenin en büyük gerçekçilik açığıdır. Sepet yok, ödeme yok, sipariş listeleme yok, iptal yok, kimlik yok.
 
-### 2.5 Eşzamanlılık ve tutarlılık
+### 2.3 Çalışan akışlar
 
-- `ProductDto` üzerinde `@Version` ile optimistic locking
-- `RepositoryAdapter.updateStock()` `saveAndFlush()` kullanıyor ve `ObjectOptimisticLockingFailureException`'ı `StockUpdateConflictException`'a çeviriyor (framework sızıntısını engellemek için)
-- `OrderCreatedUseCase` çakışma durumunda 3 kez yeniden deniyor (stoğu tekrar okuyup yeniden hesaplayarak)
-- **Persist-before-publish** sırası: önce stok kalıcı hale getiriliyor, sonra event yayınlanıyor
+- **Product → Inventory:** product-service outbox ile `PRODUCT-CREATED-EVENTS` yayınlar, inventory idempotent tüketir.
+- **Saga (choreography), uçtan uca:** `POST /api/orders` → outbox → `order-created` → inventory stok düşer → `order-created-successfully` / `order-out-of-stock` → order-service durumu günceller. Kullanıcı tarafından elle doğrulandı.
+- **Eşzamanlılık:** `ProductDto` üzerinde `@Version`; `StockUpdateConflictException`; retry decorator (3 deneme) transaction decorator'ının dışında.
+- **Inventory çağrı zinciri:** listener → retry decorator → Spring transaction proxy → transactional decorator → `OrderCreatedUseCase`. `@Primary` + `@Qualifier` ile bağlandı.
 
-### 2.6 İsimlendirme ve katman düzeltmeleri
+### 2.4 Altyapıda duran ama kullanılmayanlar
 
-- order-service'te tutarlı bir şema oturtuldu: `*Port` (arayüz) / `*Adapter` (port implementasyonu) / `*JpaRepository` (Spring Data arayüzü). Önceki durumda üç farklı katmanda "JpaOrder...Adapter" adlı üç ayrı sınıf vardı.
-- `RepositoryPort` `domain.port` → `application.port` taşındı (port bir use-case ihtiyacıdır, domain'in değil)
-- `OutOfStockException` `application.exception` → `domain.exception` taşındı (domain, application'a bağımlı olmamalı)
-- Dört serviste `application.usecase` → `application.usecases` normalizasyonu
+- **Redis** container (`ecomm-redis`, 6379) ayakta ama **hiçbir servis kullanmıyor** — kodda tek bir referans yok.
+- **Resilience4j** yalnızca product-service'te, tek `@CircuitBreaker` anotasyonu (`InventoryCircuitBreaker`, paketi `infrastructure.exception` — yanlış yer). Fallback servis arızasını "stok 0" diye sunuyor; bu yanlış fallback kalıbının kendisi bir ders konusu.
+- **api-gateway** yalnızca product'a route ediyor; `AuthenticationFilter` sabit token karşılaştırması yapıyor.
 
-### 2.7 Loglama ve AOP
+### 2.5 Şema yönetimi
 
-- Ara adım olarak `Logger` portu + `ApplicationLogger` adapter'ı yazıldı (kaldırılması planlanıyor, bkz. 4.2)
-- `inventory-service`'e `spring-boot-starter-aop` ve `LoggingAspect` eklendi
-- Öğrenilen konular: pointcut söz dizimi, Spring AOP'nin proxy tabanlı çalışması, self-invocation tuzağı, around advice'ın `proceed()` sonucunu döndürme zorunluluğu
-
-### 2.8 Şema yönetimi
-
-- `product` tablosunda `version` sütunu eksikti (entity'ye `@Version` eklendiğinde tablo güncellenmemişti); `ALTER TABLE` ile eklendi
-- `inventory-service`'e `ddl-auto: validate` eklendi → şema/entity uyuşmazlığı artık runtime'da değil, **açılışta** yakalanıyor
+Migration altyapısı yok. Tablolar elle `CREATE TABLE` / `ALTER TABLE` ile açılıyor; `ddl-auto: validate` sayesinde uyuşmazlık açılışta yakalanıyor ama düzeltme elle yapılıyor. **15 Eylül akşamı iki serviste peş peşe bu yüzden açılış hatası alındı** (inventory'de eksik tablo, order'da entity'nin beklediği sequence'in olmaması). Flyway artık "ileride" değil, Faz 1 işi.
 
 ---
 
-## 3. Güncel durum
+## 3. Hedef mimari
 
-### 3.1 Servis envanteri
+### 3.1 Servis envanteri ve gerekçeleri
 
-| Servis | Spring Boot | Java | Port | Veritabanı | Kafka rolü |
-|---|---|---|---|---|---|
-| order-service | 4.1.1 | 25 | 8082 | order_db | Producer + Consumer |
-| inventory-service | 3.3.4 | 21 | 8081 | inventory_db | Producer + Consumer |
-| product-service | 3.3.4 | 21 | 9001 | product_db | Producer |
-| api-gateway | 3.3.4 | 21 | 8080 | — | — |
-| discovery-service | 3.3.4 | 21 | 8761 | — | — |
+Her yeni özellik ayrı servis olmak zorunda değildir. Aşağıdaki tablo her kutuyu **bounded context, veri sahipliği, bağımsız yaşam döngüsü ve öğrettiği mekanizma** ile gerekçelendirir.
 
-### 3.2 Kafka topic'leri
+| Servis | Durum | Veri sahipliği | Neden ayrı servis | Öğrettiği ana konu |
+|---|---|---|---|---|
+| **product-service** (katalog) | var | Ürün, SKU, fiyat, kategori | Farklı okuma profili (çok okuma/az yazma), bağımsız ölçeklenir | Cache-aside, pagination, gRPC toplu sorgu |
+| **inventory-service** | var | Stok, **rezervasyon** | Katalogdan farklı tutarlılık ihtiyacı; stok yazma yoğun ve çakışmalı | Optimistic locking, rezervasyon + TTL, reconciliation |
+| **order-service** | var | Sipariş, sipariş satırı, tutar snapshot'ı | Sipariş yaşam döngüsünün sahibi; saga'nın başlatıcısı | Saga, outbox, idempotent checkout, durum makinesi |
+| **payment-service** | **yeni — Faz 3** | Ödeme niyeti, authorization, capture, refund | Para; ayrı güvenlik/denetim sınırı, PSP'ye tek bağlanma noktası | Idempotency key, webhook out-of-order, compensation, Resilience4j'nin gerçek kullanımı |
+| **notification-service** | **yeni — Faz 4** | Gönderim kaydı, şablon | Tamamen asenkron, hiçbir senkron çağrının yolunda değil; ayrı ölçeklenir | **RabbitMQ iş kuyruğu**, DLX, manual ack, prefetch |
+| **cart-service** | **yeni — Faz 5** | Sepet (Redis) | Kısa ömürlü, yüksek trafikli, ilişkisel DB'ye ait olmayan veri | Redis'i **birincil depo** olarak kullanmak, TTL, checkout'ta fiyat doğrulama |
+| **identity (Keycloak + resource server)** | **yeni — Faz 6** | Kullanıcı, rol, token | Hazır OIDC sağlayıcı kullanılacak; kendi JWT'sini yazmak yanlış dersi öğretir | OAuth2/OIDC, Spring Security resource server, sahiplik kontrolü |
+| **shipping-service** | **yeni — Faz 7** | Sevkiyat, takip numarası, teslim durumu | Uzun süren süreç; dış kargo firması entegrasyonu | Saga'nın ödemeden sonraki devamı, durum makinesi, geç event |
+| search / review / recommendation | **kapsam dışı** | — | Yüksek altyapı maliyeti, düşük yeni ders değeri | (gerekirse en sonda laboratuvar) |
 
-| Topic | Üreten | Tüketen |
+**Ayrı servis yapılmayacaklar — bilinçli karar:**
+
+- **Fiyatlandırma/kampanya:** product-service içinde ayrı bir modül/bounded context olarak kalır. Ayrı servis, ders değeri eklemeden bir dağıtık çağrı daha ekler. gRPC dersi de burada verilecek (toplu fiyat sorgusu).
+- **İade (return/refund):** ayrı servis değil; order + payment + shipping arasında bir **saga** olarak modellenir. Zaten öğretmek istediğimiz şey tam olarak budur.
+
+### 3.2 Teknoloji yerleşimi — hangisi nerede ve neden
+
+Bunlar aynı sınıftan şeyler değil; "protokoller" diye tek torbaya koyma.
+
+| Teknoloji | Nerede kullanılacak | Neden orada |
 |---|---|---|
-| `PRODUCT-CREATED-EVENTS` | product-service | inventory-service |
-| `order-created` | order-service | inventory-service |
-| `order-created-successfully` | inventory-service | order-service |
-| `order-out-of-stock` | inventory-service | order-service |
+| **REST** | Gateway arkasındaki tüm dış API | İstemci çeşitliliği, cache edilebilirlik, HTTP semantiği |
+| **Kafka** | Servisler arası **event backbone**: `order-created`, `stock-reserved`, `payment-authorized`, `order-shipped` | Kalıcı log, replay, çoklu bağımsız tüketici, partition ile sıralama |
+| **RabbitMQ** | notification-service **iş kuyruğu** | Rekabet eden tüketiciler, per-message ack, DLX ile zehirli mesaj, prefetch ile akış kontrolü. Kafka'nın log semantiğiyle **karşılaştırmalı** öğretilecek |
+| **gRPC** | order → product toplu fiyat/ürün sorgusu (checkout'ta N ürün) | Tipli sözleşme, tek çağrıda toplu veri, deadline propagation. Mevcut Feign `InventoryClient` ile karşılaştırılacak |
+| **Redis** | 1) cart-service birincil depo, 2) katalog cache-aside, 3) gateway rate limiter | Üç farklı kullanım, üç farklı ders (TTL/stampede/token bucket) |
+| **Resilience4j** | payment-service → PSP adapter'ı | Gerçek dış bağımlılık: timeout bütçesi, retry+jitter, CB, bulkhead. Mevcut yanlış fallback burada düzeltilecek |
+| **Keycloak** | OIDC sağlayıcı | Gerçek token akışı; servisler resource server olur |
+| **Kubernetes** | Faz 10'da Eureka'nın yerine | Service/DNS ile keşif, probe, rollout, HPA. **İş tutarlılığı çözümü değildir** |
 
-### 3.3 Derlenme durumu (doğrulandı)
+### 3.3 Hedef Kafka topic'leri
 
-| Servis | `mvnw -o compile` |
-|---|---|
-| order-service | ✅ |
-| api-gateway | ✅ |
-| discovery-service | ✅ |
-| inventory-service | ❌ |
-| product-service | ❌ |
+| Topic | Üreten | Tüketen | Anahtar |
+|---|---|---|---|
+| `product-created` | product | inventory | productId |
+| `order-created` | order | inventory, notification | orderId |
+| `stock-reserved` | inventory | order, payment | orderId |
+| `stock-rejected` | inventory | order, notification | orderId |
+| `payment-authorized` | payment | order, inventory, shipping | orderId |
+| `payment-failed` | payment | order, inventory, notification | orderId |
+| `order-shipped` | shipping | order, notification | orderId |
+| `order-cancelled` | order | inventory, payment, notification | orderId |
 
-**2026-09-12 mentorluk doğrulaması:** Maven 3.9.16, aktif JDK 25.0.4. Inventory ve product, Boot 3.3.4 üzerinden Lombok 1.18.34 alıyor; Java hedefleri 21. `sh mvnw -o compile` ile inventory'de `ExceptionInInitializerError: com.sun.tools.javac.code.TypeTag :: UNKNOWN` yeniden üretildi. Product'ta açık annotation processor yapılandırması bulunmadığından önce eksik `log` alanları görülüyor; yalnızca deney komutuna `-Dmaven.compiler.proc=full` eklenince aynı Lombok başlatma hatası ortaya çıkıyor. Product için sürüm ve annotation processor yapılandırması ayrı ayrı ele alınmalı. Diğer üç servisin tablodaki sonuçları önceki kayıttır; bu mentorluk adımında yeniden derlenmediler.
+Anahtar olarak `orderId` kullanılması tesadüf değil: aynı siparişin event'lerinin aynı partition'da, dolayısıyla **sıralı** işlenmesini sağlar. Bu bir ders konusudur.
+
+Mevcut `PRODUCT-CREATED-EVENTS` (BÜYÜK-KEBAB) adı küçük-kebab'a normalize edilecek.
 
 ---
 
-## 4. Açık bulgular
+## 4. Hedef API yüzeyi
 
-### 4.1 Kritik — Saga'yı sessizce bozanlar
+Her endpoint bir ders taşır — sağ sütun o dersi gösterir. Hepsi aynı anda yazılmayacak; ilgili fazda gelecek.
 
-| # | Bulgu | Nerede |
+### 4.1 Katalog — product-service
+
+| Endpoint | Ders |
+|---|---|
+| `POST /products` | Validation, Problem Details (RFC 7807), 201 + Location |
+| `GET /products/{id}` | ETag / optimistic concurrency, cache-aside |
+| `GET /products?page&size&category&q` | Pagination, projection, N+1'den kaçınma |
+| `PATCH /products/{id}` | Kısmi güncelleme, `If-Match` ile çakışma kontrolü |
+| `POST /products/{id}/price` | Fiyat değişikliği event'i; sipariş tutarının snapshot olması gerektiği dersi |
+| *(gRPC)* `CatalogService.GetProducts(ids)` | Toplu iç sorgu, deadline |
+
+### 4.2 Stok — inventory-service
+
+| Endpoint | Ders |
+|---|---|
+| `GET /inventory/{sku}` | "Ürün yok" ile "stok 0" farkı (mevcut bulgu 5) |
+| `POST /inventory/reservations` | **Rezervasyon modeli** — iki fazlı iş akışı |
+| `POST /inventory/reservations/{id}/commit` | Ödeme başarılı → rezervasyonu kesinleştir |
+| `DELETE /inventory/reservations/{id}` | Telafi (compensation) işlemi |
+| `POST /inventory/{sku}/adjust` | Admin yetkisi, denetim kaydı |
+
+### 4.3 Sepet — cart-service
+
+| Endpoint | Ders |
+|---|---|
+| `POST /carts` | Misafir vs kullanıcı sepeti, Redis TTL |
+| `GET /carts/{id}` | Bayat fiyat problemi |
+| `POST /carts/{id}/items` | Idempotent ekleme |
+| `PATCH /carts/{id}/items/{sku}` / `DELETE` | Kısmi güncelleme |
+| `POST /carts/{id}/checkout` | **Checkout'ta fiyat/stok yeniden doğrulama** — sepetteki fiyata güvenilmez |
+
+### 4.4 Sipariş — order-service
+
+| Endpoint | Ders |
+|---|---|
+| `POST /orders` + `Idempotency-Key` header | **Idempotent checkout** — istemci retry'ı ikinci sipariş yaratmamalı (mevcut bulgu 1'in gerçek çözümü) |
+| `GET /orders/{id}` | Async işi senkron GET ile takip ettirme |
+| `GET /orders?page&size&status` | Sahiplik kontrolü: başkasının siparişini okuyamama (403) |
+| `POST /orders/{id}/cancel` | Saga telafi zinciri: stok iade + ödeme iadesi |
+| `GET /orders/{id}/timeline` | **CQRS projection** — saga adımlarının okunabilir hâli |
+
+### 4.5 Ödeme — payment-service
+
+| Endpoint | Ders |
+|---|---|
+| `POST /payments` (authorize) | Idempotency key, para tipi (`BigDecimal`/Money, asla `double`) |
+| `POST /payments/{id}/capture` | Authorization ile capture ayrımı |
+| `POST /payments/{id}/refund` | Telafi işlemi, kısmi iade |
+| `GET /payments/{id}` | Durum sorgulama |
+| `POST /webhooks/psp` | **Geç ve sırasız gelen callback** — iptal edilmiş siparişe gelen ödeme onayı |
+
+### 4.6 Kimlik — Keycloak + servisler
+
+| Endpoint | Ders |
+|---|---|
+| Keycloak token endpoint | OAuth2 password/authorization code akışı |
+| `GET /me` | JWT claim'lerinden kullanıcı |
+| `GET/POST /me/addresses` | Sahiplik kontrolü |
+
+Gateway tarafı: tüm route'lar, rate limiting, timeout bütçesi, CORS, 401 vs 403 ayrımı.
+
+---
+
+## 5. Fazlar
+
+> Sıra keyfi değil: her faz bir öncekinin açtığı kapıyı kullanır. Rezervasyon olmadan ödeme anlamsız; ödeme olmadan bildirim ve iade senaryosu yok.
+>
+> **Faz 6 (kimlik/gateway) bağımsızdır** — tempo değiştirmek istendiğinde araya alınabilir.
+
+### Faz 0 — Aktif iş: stok akışını sağlamlaştır
+
+Devam eden konu. MENTORSHIP.md bölüm 5'teki "sıradaki somut ders" burada.
+
+1. **Atomik idempotency:** `OrderRepositoryPort.tryRegisterEvent(int eventId)` — `INSERT ... ON CONFLICT DO NOTHING`, etkilenen satır sayısı → boolean. Mevcut `findById` + `save` check-then-act yarışını kapatır.
+2. Sonuç kalıcılığı: başarı / yetersiz stok sonuçlarının yazılması.
+3. **inventory-service'e outbox** — persist-then-publish arasındaki çökmede mesaj kaybını kapatır (order-service'te çözülen problemin aynısı).
+4. **Kafka error handling:** `DefaultErrorHandler` + backoff + Dead Letter Topic. Şu anki "tüm exception'ları yut" davranışını bitirir (bulgu 2, 3).
+
+### Faz 1 — Zemin: şema, sözleşme, bean hijyeni
+
+5. **Flyway** — beş serviste versiyonlanmış migration. `ddl-auto: validate` korunur. *(15 Eylül'deki iki açılış hatasının kalıcı çözümü.)*
+6. Sunucu tarafında `orderId` üretimi + `Idempotency-Key` desteği (bulgu 1).
+7. Tüm servislerde RFC 7807 Problem Details; `OrderController` `void` dönmeyi bırakır, 201 + Location (bulgu 17).
+8. Bean factory'ler `@Configuration` olur (bulgu 9); adapter paketleri ortak şemaya oturur (bulgu 8).
+9. `StockUpdateConflictException` hangi katmana ait — karara bağlanır (bulgu 7).
+10. Outbox tablosu temizliği (bulgu 13); `kafkaTemplate.send` hata loglaması (bulgu 14).
+
+### Faz 2 — Stok rezervasyonu (gerçekçilik sıçraması)
+
+11. Stok **düşürme** yerine **rezervasyon** modeli: `reserve` (TTL ile) → `commit` / `release`.
+12. Süresi dolan rezervasyonların toplanması: zamanlanmış reconciliation işi.
+13. Saga'nın yeniden modellenmesi: `order-created` → `stock-reserved` → (ödeme) → `commit`.
+
+**Müşteri senaryosu:** *Son ürün için iki müşteri aynı anda ödeme ekranında. Biri ödemeyi yarıda bırakıyor. Stok ne zaman serbest kalır?*
+
+### Faz 3 — payment-service + saga orchestration
+
+14. Yeni servis: ödeme niyeti, authorize/capture/refund, kendi DB'si, kendi outbox'ı.
+15. Sahte PSP adapter'ı (gecikme ve arıza enjekte edilebilir) + **Resilience4j doğru kullanım**: timeout bütçesi → retry (jitter'lı) → circuit breaker → bulkhead. Mevcut yanlış fallback düzeltilir.
+16. **Idempotency key** ile çift çekim önleme.
+17. **Webhook:** geç, sırasız, tekrarlı callback'lerin işlenmesi.
+18. **Orchestration saga** — mevcut choreography ile karşılaştırmalı. Sipariş iptali/iade zinciri burada kurulur.
+
+**Müşteri senaryosu:** *Ödeme yanıtı gelmedi ama para çekilmiş olabilir. Sipariş ne durumda kalmalı?*
+
+### Faz 4 — notification-service + RabbitMQ
+
+19. Yeni servis: RabbitMQ tüketicisi, e-posta/SMS gönderim kaydı, şablon.
+20. Exchange/routing key tasarımı, **prefetch**, **manual ack**, publisher confirms.
+21. **DLX** ile zehirli mesaj; requeue döngüsünün teşhisi.
+22. Kafka ile RabbitMQ'nun aynı problem üzerinden karşılaştırılması: neden bildirim Kafka topic'i değil de kuyruk?
+
+### Faz 5 — cart-service + Redis
+
+23. Yeni servis: Redis birincil depo, TTL, misafir/kullanıcı sepeti birleştirme.
+24. `POST /carts/{id}/checkout` → fiyat ve stok yeniden doğrulama → order-service'e devir.
+25. Katalogda **cache-aside**: TTL, invalidation, cache stampede.
+
+### Faz 6 — Kimlik ve gerçek gateway *(araya alınabilir)*
+
+26. Keycloak; servisler OAuth2 resource server olur; mock token filtresi kaldırılır.
+27. Sahiplik/rol kontrolü: 401 ile 403 ayrımı; başkasının siparişini okuyamama.
+28. Gateway olgunlaşır: tüm route'lar, **Redis tabanlı rate limiting**, timeout bütçesi, CORS, hata normalizasyonu.
+
+### Faz 7 — shipping-service + gRPC
+
+29. Yeni servis: sevkiyat oluşturma, takip, teslim event'i; saga'nın ödeme sonrası devamı.
+30. **gRPC**: order → product toplu ürün/fiyat sorgusu. Aynı application portuna hem REST hem gRPC adapter'ı bağlanır — hexagonal'in asıl sınavı budur.
+31. Deadline propagation, status kodları, sürüm uyumu.
+
+### Faz 8 — Observability (uçtan uca)
+
+32. Ortak `ecommerce-observability` starter modülü: `LoggingAspect`, `@NoLogging`, `@AutoConfiguration`.
+33. Correlation ID elle: MDC + Kafka/AMQP header'ları.
+34. Micrometer Tracing + OpenTelemetry + Jaeger/Tempo — elle yazılanın yerine.
+35. Structured JSON log + Loki/Grafana; Kafka için Redpanda Console/AKHQ.
+36. SLI/SLO: outbox lag, consumer lag, ödeme başarı oranı.
+
+### Faz 9 — Hexagonal → Clean Architecture geçişi
+
+37. Önce **somut yapısal fark** listesi çıkarılır: içeri yönelen bağımlılıklar, use case giriş/çıkış modelleri, interface adapter katmanı, composition root sınırı. Paket adı değiştirmek geçiş sayılmaz.
+38. Tek bir servis üzerinde uygulanır (aday: payment-service, en yeni ve en temiz), sonra diğerlerine yayılır.
+39. **ArchUnit** ile bağımlılık kuralları teste bağlanır.
+
+### Faz 10 — Maven → Gradle + Kubernetes
+
+40. Gradle Kotlin DSL, toolchain, dependency scope, BOM, annotation processor, bootJar, CI eşdeğerliği.
+41. Version catalog + **convention plugin** — yeni servisler hedef mimaride doğar.
+42. Container image'ları; Kubernetes Deployment/Service/Ingress; **Eureka yerine Service/DNS**; probe, rollout, HPA, ConfigMap/Secret, graceful shutdown.
+
+### Faz 11 — İleri EDA laboratuvarı
+
+43. Polling outbox ile **CDC/Debezium** karşılaştırması.
+44. Sınırlı **event sourcing** denemesi (tek aggregate): event store ile outbox farkı, rebuild, schema evolution maliyeti.
+45. `GET /orders/{id}/timeline` için CQRS projection.
+
+---
+
+## 6. Sürekli yürüyen işler
+
+Bunlar bir faza ait değil, her fazın içinde yürür:
+
+- **Test stratejisi:** her fazda o fazın kritik davranışı için az sayıda anlamlı test — Testcontainers (DB/Kafka/Rabbit), ArchUnit (mimari kurallar), contract test (OpenAPI/protobuf). Uzun test listeleri dersin yerine geçmez.
+- **Aralıklı hatırlama:** oturum başında bir eski konu sorusu; 2-3 oturum sonra aynı kavramı başka problemde uygulama; dönüm noktalarında kodu kopyalamadan yeniden kurma. Ritim MENTORSHIP.md bölüm 3'te.
+- **Resilience4j özel tekrar planı:** MENTORSHIP.md bölüm 3'te — kullanıcı bu konuyu hatırlamadığını bildirdi, Faz 3'te sıfırdan yeniden kurulacak.
+- **Senior görüşme provası:** dönüm noktalarında 10-15 dakikalık tasarım/arıza değerlendirmesi.
+- **Güvenlik hijyeni:** DB parolaları şu an `application.yml` içinde açık metin ve repo'da versiyonlu (bulgu 16) — Faz 6/10'da config/secret yönetimine bağlanır.
+
+---
+
+## 7. Açık bulgular
+
+Faz planına bağlanmış hâlleri parantez içinde.
+
+### 7.1 Kritik — Saga'yı sessizce bozanlar
+
+| # | Bulgu | Nerede | Plan |
+|---|---|---|---|
+| 1 | `orderId` client'tan geliyor; aynı id ile ikinci POST eski siparişi sessizce ezer | `OrderController`, `OrderDto` | Faz 1.6 |
+| 2 | Çakışma tükendiğinde `StockUpdateConflictException` dıştaki `catch (OutOfStockException)` tarafından yakalanmıyor; sipariş sonsuza dek `PENDING` | `OrderCreatedUseCase` | Faz 0.4 |
+| 3 | Consumer tüm exception'ları yutuyor (`System.err.print`); offset commit ediliyor, mesaj kayboluyor | `ReadOrderCreatedEvent` | Faz 0.4 |
+| 4 | `order-created` tüketiminde idempotency yok; çift teslimatta stok iki kez düşer | `ReadOrderCreatedEvent` | Faz 0.1 |
+| 5 | Olmayan ürün ile stoğu biten ürün ayırt edilemiyor; `updateStock()` ürün yoksa sessizce yeni ürün yaratıyor | `RepositoryAdapter` | Faz 2 |
+
+### 7.2 Mimari
+
+| # | Bulgu | Plan |
 |---|---|---|
-| 1 | **`orderId` client'tan geliyor.** `save()` var olan id ile update yapar; aynı id ile ikinci POST eski siparişi sessizce ezer. Id sunucu tarafında üretilmeli. | `OrderController`, `OrderRequest`, `OrderDto` |
-| 2 | **Çakışma tükendiğinde Saga çıkmaza giriyor.** 3. denemede fırlatılan `StockUpdateConflictException` dıştaki `catch (OutOfStockException)` tarafından yakalanmıyor, consumer'da yutuluyor; sipariş sonsuza dek `PENDING` kalıyor. Terminal state garantisi yok. | `OrderCreatedUseCase` |
-| 3 | **Consumer tüm exception'ları yutuyor** (`System.err.print(e)`). Deserialization hatası da iş hatası da aynı deliğe gidiyor, offset commit ediliyor, mesaj kayboluyor. DLQ/retry yok. | `ReadOrderCreatedEvent` |
-| 4 | **`order-created` tüketiminde idempotency yok.** Outbox at-least-once çalışır (ack dönmeden aynı satır tekrar gönderilebilir), dolayısıyla çift teslimat teorik değil; aynı mesaj iki kez gelirse stok iki kez düşer. Ürün tarafında `eventId` ile bu mekanizma var, order tarafında yok. | `ReadOrderCreatedEvent` |
-| 5 | **Olmayan ürün ile stoğu biten ürün ayırt edilemiyor.** `getStock()` bulunamayan ürün için `0` dönüyor → sipariş "stok yok" diye iptal ediliyor. Ayrıca `updateStock()` ürün yoksa sessizce yeni ürün **yaratıyor**. | `RepositoryAdapter` |
+| 7 | `StockUpdateConflictException` `domain.exception`'da ama teknik bir arıza modu — hangi katman? **Karar verilmedi** | Faz 1.9 |
+| 8 | Adapter paketleri servisler arasında tutarsız; ortak pointcut yazmayı imkânsız kılıyor | Faz 1.8 |
+| 9 | Bean factory'ler "lite mode" (`@Component`); `@Configuration` olmalı | Faz 1.8 |
+| 10 | order-service'te aspect yok; elle loglar silindi, yerine bir şey gelmedi | Faz 8.32 |
+| 11 | api-gateway yalnızca product-service'e route ediyor | Faz 6.28 |
+| 20 | Resilience4j `infrastructure.exception` paketinde ve fallback arızayı "stok 0" diye sunuyor | Faz 3.15 |
+| 21 | Redis container ayakta ama hiçbir yerde kullanılmıyor | Faz 5 |
 
-### 4.2 Mimari
+### 7.3 İşletim ve kod kalitesi
 
-| # | Bulgu |
-|---|---|
-| 6 | **Sürüm kayması:** order-service Boot 4.1.1 / Java 25, diğer dört servis Boot 3.3.4 / Java 21. Bilinçli bir karar olmalı. |
-| 7 | **`StockUpdateConflictException` `domain.exception`'da.** Bunu infrastructure fırlatıyor, application yakalıyor ve anlamı "optimistic locking çakışması" — yani teknik bir arıza modu, iş kuralı değil. Domain'e mi ait? (Aynı soru `IllegalEventIdempotent` için de geçerli.) **Karar verilmedi.** |
-| 8 | **Adapter paketleri tutarsız:** order-service `infrastructure.adapters` + `infrastructure.persistence.adapter`, inventory-service `infrastructure.repository.adapter` + `infrastructure.kafka.adapter`. Ortak bir pointcut yazmayı imkânsız kılıyor. |
-| 9 | **Bean factory'ler "lite mode":** `CreateApplicationBean` `@Component`, `BeanFactory` `@Component`. `@Configuration` olmalı — aksi halde bir `@Bean` metodundan diğeri çağrıldığında singleton garantisi yok. |
-| 10 | **order-service'te aspect yok.** Elle yazılmış loglar silindi ama yerine aspect gelmedi; servis şu an gözlemlenebilirlikten yoksun. `Logger` portu ve use case'lerdeki manuel loglar da hâlâ duruyor (kaldırılması planlanıyor). |
-| 11 | **api-gateway sadece product-service'e route ediyor.** order-service ve inventory-service gateway üzerinden erişilebilir değil; testler doğrudan 8082'ye gidiyor. |
+| # | Bulgu | Plan |
+|---|---|---|
+| 13 | Outbox tablosundaki gönderilmiş satırlar hiç temizlenmiyor | Faz 1.10 |
+| 14 | `kafkaTemplate.send(...)` future'ında `.exceptionally()` yok; gönderim hatası sessiz | Faz 1.10 |
+| 15 | `OrderCreatedEventPublisherAdapter`: format string'de tek `%s`, iki argüman — `dto` loga düşmüyor | Faz 1 |
+| 16 | DB kullanıcı adı/parolası `application.yml` içinde açık metin ve repo'da versiyonlu | Faz 6/10 |
+| 17 | `OrderController` `void` dönüyor; domain exception'ları 500'e dönüşüyor | Faz 1.7 |
+| 18 | Topic isimlendirmesi tutarsız: `PRODUCT-CREATED-EVENTS` vs `order-created` | Faz 1 |
+| 19 | `Order` validasyonunda `customerId.isEmpty()` NPE riski; `orderId < 0` kontrolü 0'a izin veriyor | Faz 1 |
+| 22 | Migration altyapısı yok; şema elle yönetiliyor | Faz 1.5 |
 
-### 4.3 İşletim ve kod kalitesi
-
-| # | Bulgu |
-|---|---|
-| 12 | **Lombok/JDK uyumsuzluğu iki servisi derlenemez hâlde bırakıyor** (bkz. 3.3). Çok modüllü build'e geçmeden önce çözülmeli. |
-| 13 | Outbox tablosundaki gönderilmiş satırlar hiç temizlenmiyor → tablo sonsuza dek büyüyor. |
-| 14 | `kafkaTemplate.send(...)` future'ında `.exceptionally()` yok; gönderim hatası hiç loglanmıyor (satır `published` işaretlenmediği için retry doğru çalışıyor, ama sessiz). |
-| 15 | `OrderCreatedEventPublisherAdapter`: `"...".formatted(getSimpleName(), dto)` — format string'de tek `%s`, iki argüman; `dto` loga hiç düşmüyor. |
-| 16 | Veritabanı kullanıcı adı/parolası `application.yml` içinde açık metin ve repo'da versiyonlanmış. |
-| 17 | `OrderController` `void` dönüyor (201/Location yok) ve domain exception'ları 500'e dönüşüyor. inventory-service'te `Rfc7808Service` (RFC 7807 Problem Details) varken order-service'te karşılığı yok. |
-| 18 | Topic isimlendirmesi tutarsız: `PRODUCT-CREATED-EVENTS` (BÜYÜK-KEBAB) vs `order-created` (küçük-kebab). |
-| 19 | `Order` validasyonunda `customerId.isEmpty()` null gelirse NPE atar; `orderId < 0` kontrolü 0'a izin veriyor ama mesaj "0'dan büyük olmalı" diyor. |
+**Çözülenler:** bulgu 6 (sürüm kayması) ve 12 (Lombok/JDK) — beş servis de Boot 4.1.1 / JDK 25, derleniyor.
 
 ---
 
-## 5. Yol haritası
+## 8. Kalıcı dersler
 
-> **2026-09-13 kullanıcı kararı:** Şu an Hexagonal Architecture ve Maven ile devam ediliyor. Domain/application framework bağımsız kalacak; bu katmanlara `@Transactional` önerilmeyecek. Güncel ders inventory için giriş portu ve transactional decorator; ardından atomik idempotency, retry sınırı ve sonuç outbox'ı. Aşağıdaki eski faz/durum kayıtları kendiliğinden güncel sayılmamalı. Güncel öğrenme sırası ve kararlılık eşiği `MENTORSHIP.md` bölüm 0'da.
-
-### Faz 1 — Zemin temizliği (sıradaki iş)
-
-1. Lombok sürümünü `1.18.46` olarak ez (inventory-service, product-service); product-service için açık annotation processor yapılandırmasını da ekle → beş servisin de komut satırından derlenmesini sağla. İlk mentorluk adımı inventory değişikliğini kullanıcının uygulaması; henüz tamamlanmadı.
-2. **Tüm projede `application.port.in` / `application.port.out` standardizasyonu** (2026-09-13 kullanıcı talebi): önce yönün application'a göre belirlendiğini öğret; inventory → order → product → gateway sırasıyla mevcut portları ve giriş sözleşmelerini değerlendir. Servis başına paket/import/wiring ve derlemeyi kontrol et. JPA/Feign gibi framework arayüzlerini infrastructure'da tut; discovery için gereksiz port üretme. ProductEventPublisher içindeki OutboxEventEntity bağımlılığını ayrıca ayır. Port envanteri `MENTORSHIP.md` bölüm 0'da. Adapter paketlerinin ortak şeması da bu sorumluluk ayrımına göre ele alınacak (bulgu 8). Henüz tamamlanmadı.
-3. Bean factory'leri `@Configuration` yap (bulgu 9)
-4. Bulgu 7'ye karar ver: `StockUpdateConflictException` hangi katmana ait?
-
-### Faz 2 — Observability
-
-5. **Ortak starter modülü:** `ecommerce-observability` adında bir Maven modülü — içinde `LoggingAspect`, `@NoLogging` anotasyonu ve bir `@AutoConfiguration` sınıfı; `AutoConfiguration.imports` ile kaydedilir. Bağımlılığı ekleyen her servis hiçbir kod yazmadan loglamayı kazanır. Kopyala-yapıştırın alternatifi budur.
-   - Katmanlı pointcut haritası: giriş noktaları (controller, `@KafkaListener`) INFO; use case'ler INFO; dış adapter'lar DEBUG; domain hiç
-   - Pointcut'ın gerçekten eşleştiğini doğrulayan ArchUnit testi (sessiz eşleşmeme tuzağına karşı)
-6. `Logger` portunu kaldır, kalan iş logları için SLF4J'i doğrudan kullan
-7. **Correlation ID'yi elle kur:** MDC + Kafka header'ları ile bir isteğin izini HTTP → Kafka → DB boyunca taşı
-8. **Micrometer Tracing + OpenTelemetry + Jaeger/Tempo:** elle yazdığını endüstri standardıyla değiştir; bir siparişin tüm yolculuğunu tek bir waterfall diyagramında gör
-9. Kafka topic'lerini gözlemlemek için Redpanda Console / AKHQ
-10. Structured JSON loglama + Loki/Grafana ile trace id üzerinden servisler arası arama
-
-### Faz 3 — Dayanıklılık
-
-11. **Kafka error handling:** `DefaultErrorHandler` + retry/backoff + Dead Letter Topic (bulgu 2 ve 3'ün gerçek çözümü)
-12. **Idempotent consumption** `order-created` için (bulgu 4)
-13. **inventory-service'e Outbox:** persist-then-publish arasında çökme hâlinde mesaj kaybını engelle (order-service'te çözülen problemin aynısı)
-14. Sunucu tarafında `orderId` üretimi (bulgu 1)
-15. Outbox tablosu temizliği (bulgu 13)
-
-### Faz 4 — Baştan beri planlanan konular
-
-16. **Hexagonal → Clean Architecture geçişi:** ürün/sipariş akışları, idempotency, rollback, kesinti sonrası kurtarma ve tekrarlanabilir doğrulamalarla kararlılık değerlendirildikten sonra yapılacak. Somut yapısal değişiklikler önce belirlenecek; yalnızca paket adlarını değiştirmek geçiş sayılmayacak.
-17. **Maven → Gradle geçişi:** kararlılık eşiğinden sonra, mimari geçişten ayrı bir aşamada ve mevcut davranış kontrolleri korunarak yapılacak (kişisel öğrenme hedefi).
-18. **Gradle convention plugin:** Gradle geçişinden sonra yeni servislerin ortak derleme ve mimari kurallarını standardize etmek için ele alınacak.
-19. **Gerçek JWT/OAuth2 kimlik doğrulama** (gateway'deki mock kontrolün yerine)
-20. Resilience4j'nin daha derin kullanımı (bulkhead, rate limiter, retry politikaları)
-21. Şema yönetimi için Flyway/Liquibase — `ddl-auto: validate` + versiyonlanmış migration script'leri
-22. Test stratejisi: Testcontainers ile entegrasyon testleri, ArchUnit ile mimari testler
-
----
-
-## 6. Kalıcı dersler
-
-Bu bölüm proje boyunca tekrar eden hata kalıplarını ve varılan prensipleri tutar.
+Proje boyunca tekrar eden hata kalıpları ve varılan prensipler.
 
 **Tekrar eden hata kalıpları**
-- Yeni infrastructure sınıfları Spring bean anotasyonu olmadan geliyor (`@Component`/`@Service`) — order-service'te tek başına üç kez yaşandı
-- `String.formatted()` yanlış kullanımı: yer tutucu ve argüman sayısı uyuşmuyor, veri sessizce kayboluyor. SLF4J'in `{}` yer tutucusu hem bu hatayı imkânsız kılar hem de log seviyesi kapalıyken string'i hiç kurmaz
-- Sessiz arıza modları: yanlış pointcut hiç eşleşmez ama hata da vermez; yanlış paket adı derlenir ama beklenen yere gitmez
+
+- Yeni infrastructure sınıfları Spring bean anotasyonu olmadan geliyor — order-service'te tek başına üç kez.
+- `String.formatted()` yanlış kullanımı: yer tutucu/argüman sayısı uyuşmuyor, veri sessizce kayboluyor. SLF4J'in `{}` biçimi bu hatayı imkânsız kılar.
+- **Sessiz arıza modları:** yanlış pointcut hiç eşleşmez ama hata da vermez; yanlış fallback arızayı geçerli iş sonucuna çevirir; proxy'lenmemiş nesnedeki `@Transactional` hiçbir şey yapmaz.
+- **Kod ile şema birbirinden kayıyor:** entity değişiyor, tablo değişmiyor (veya tersi). 15 Eylül'de iki serviste peş peşe yaşandı.
 
 **Yerleşen prensipler**
-- **Aspect şeffaf olmalıdır:** gözlemler, davranışı değiştirmez. Logla ve yeniden fırlat; `finally` içinde `return` etme
-- **Mekanik izler aspect'e, iş anlamı taşıyan loglar koda.** Aspect metot adını ve argümanları verir, o çağrının ne anlama geldiğini veremez
-- **Paket, sınıfın bir özelliğidir; klasör sadece dosyanın durduğu yer.** Pointcut'lar, import'lar ve tooling pakete bakar
-- **Mimari tutarlılık estetik bir tercih değil, otomasyonun ön koşuludur.** Kesişen bir kural ancak tutarlı bir yapı üzerine kurulabilir
-- **Hata, iş sonucuna dönüştürülmemelidir.** "Ürün bulunamadı"nın "stok yok"a dönüşmesi gibi
-- Şema uyuşmazlığı runtime'da değil açılışta yakalanmalı (`ddl-auto: validate`)
+
+- **Aspect şeffaf olmalıdır:** gözlemler, davranışı değiştirmez. Logla ve yeniden fırlat.
+- **Mekanik izler aspect'e, iş anlamı taşıyan loglar koda.**
+- **Paket, sınıfın bir özelliğidir;** klasör sadece dosyanın durduğu yer.
+- **Mimari tutarlılık estetik değil, otomasyonun ön koşuludur.**
+- **Hata, iş sonucuna dönüştürülmemelidir.** "Ürün bulunamadı"nın "stok yok"a dönüşmesi gibi.
+- **Şema uyuşmazlığı runtime'da değil açılışta yakalanmalı** (`ddl-auto: validate`) — ve düzeltmesi elle değil, migration ile yapılmalı.
+- **Decorator'da parametre sardığın katmandır;** `@Primary` dışarıya, `@Qualifier` içeriye bakar. `new` ile kurulan nesne container'a uğramaz, proxy'lenmez.
+
+---
+
+## 9. Sözlük
+
+Bu belgelerde geçen kısaltmalar. Farklı asistanlar ve platformlar arasında devir yapılırken belirsizlik kalmasın diye burada toplandı.
+
+| Kısaltma | Açılımı | Bu projede ne demek |
+|---|---|---|
+| **PSP** | Payment Service Provider | Ödeme sağlayıcı (Stripe/iyzico benzeri). Faz 3'te sahte bir adapter ile taklit edilecek |
+| **CB** | Circuit Breaker | Resilience4j devre kesici. Mevcut tek kullanım: product-service `InventoryCircuitBreaker` |
+| **DLT** | Dead Letter Topic | Kafka'da işlenemeyen mesajların atıldığı ayrı topic |
+| **DLX** | Dead Letter Exchange | RabbitMQ karşılığı; reddedilen/süresi dolan mesajları yönlendirir |
+| **TTL** | Time To Live | Bir kaydın kendiliğinden geçersizleşme süresi (rezervasyon, sepet, cache) |
+| **CDC** | Change Data Capture | DB transaction log'unu okuyarak event üretme (Debezium). Faz 11'de polling outbox ile karşılaştırılacak |
+| **CQRS** | Command Query Responsibility Segregation | Yazma modeli ile okuma modelini ayırma. Burada: `GET /orders/{id}/timeline` için ayrı projection |
+| **MDC** | Mapped Diagnostic Context | SLF4J'nin thread'e bağlı log bağlamı; correlation ID taşımak için |
+| **SLI / SLO** | Service Level Indicator / Objective | Ölçülen gösterge ve hedefi (ör. outbox gecikmesi < 5 sn) |
+| **HPA** | Horizontal Pod Autoscaler | Kubernetes'te yüke göre pod sayısını ayarlayan mekanizma |
+| **OIDC** | OpenID Connect | OAuth2 üzerine kurulu kimlik katmanı; Keycloak bunu sağlayacak |
+| **IAM** | Identity and Access Management | Kimlik ve yetki yönetimi |
+| **SKU** | Stock Keeping Unit | Stok takip birimi; bir ürün varyantının benzersiz kodu |
+| **ETag** | Entity Tag | Kaynağın sürümünü taşıyan HTTP başlığı; `If-Match` ile çakışma kontrolü |
+| **BOM** | Bill of Materials | Bağımlılık sürümlerini merkezî yöneten Maven/Gradle yapısı |
+| **DSL** | Domain Specific Language | Burada: Gradle'ın Kotlin tabanlı yapılandırma dili |
+| **SPOF** | Single Point of Failure | Tek arıza noktası; choreography tercihinin gerekçelerinden biri |
+| **DDD** | Domain-Driven Design | Alan odaklı tasarım; bounded context kavramının kaynağı |
+| **RFC 7807** | Problem Details for HTTP APIs | Standart hata gövdesi biçimi |
